@@ -119,8 +119,8 @@ create policy "Allow users to view their own attachments" on storage.objects for
 create policy "Allow support roles to view all attachments" on storage.objects for select using ( bucket_id = 'attachments' and ((select role from profiles where id = auth.uid()) in ('admin', 'verifier', 'approver')) );
 
 -- 6. Seed initial admin user role after they sign up
--- After signing up with your admin email, run this command to grant admin privileges:
--- update public.profiles set role = 'admin' where email = 'your-admin-email@example.com';
+-- The application will automatically prompt for admin creation on first run.
+-- The manual SQL command is no longer needed.
 `;
 
 
@@ -168,12 +168,9 @@ const SupabaseInstructions: React.FC = () => {
             </button>
           </div>
 
-          <h3 className="text-lg font-semibold">4. Sign Up and Set Admin Role</h3>
-          <p>After setting up the backend, run the application and sign up with the email you want to use for the administrator. Then, go back to the SQL Editor, and run the following command to elevate your user to an admin:</p>
-          <pre className="p-2 text-sm bg-gray-100 border rounded-md">
-            <code>{`update public.profiles set role = 'admin' where email = 'your-email@example.com';`}</code>
-          </pre>
-
+          <h3 className="text-lg font-semibold">4. Create Your Admin Account</h3>
+          <p>After completing the steps above and redeploying/refreshing your application, it will automatically detect that no admin exists and will present you with a form to create the first administrator account.</p>
+         
            <p className="pt-4 font-bold text-center">Once these steps are completed, please refresh this page.</p>
 
         </div>

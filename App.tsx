@@ -5,6 +5,7 @@ import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Proje
 import * as Notifications from './notifications';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import SupabaseInstructions from './components/SupabaseInstructions';
+import AdminSetup from './components/AdminSetup';
 import { Session } from '@supabase/supabase-js';
 
 const generateReferenceNumber = (): string => {
@@ -34,6 +35,8 @@ const App: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [needsAdminSetup, setNeedsAdminSetup] = useState(false);
+
 
   const fetchData = useCallback(async () => {
     if (!session) return;
@@ -101,21 +104,42 @@ const App: React.FC = () => {
     }
   }, [session]);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!isSupabaseConfigured) {
-        setLoading(false);
-        return;
-    }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
       setLoading(false);
+      return;
+    }
+
+    const initializeApp = async () => {
+      setLoading(true);
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', Role.ADMIN);
+
+      if (error) {
+        console.error("Error checking for admin user:", error.message);
+      }
+
+      if (count === 0) {
+        setNeedsAdminSetup(true);
+        setLoading(false);
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setLoading(false);
+      }
+    };
+
+    initializeApp();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (needsAdminSetup && session) {
+        setNeedsAdminSetup(false);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
     return () => subscription.unsubscribe();
   }, []);
 
@@ -133,7 +157,6 @@ const App: React.FC = () => {
         
         if (error) {
           console.error('Error fetching user profile:', error);
-          // Might need to sign out if profile doesn't exist
         } else if (data) {
           setCurrentUser(mapDbUserToAppUser(data));
         }
@@ -240,7 +263,6 @@ const App: React.FC = () => {
 
     await fetchData();
 
-    // Notifications can stay as they are (console logs)
     const projectName = projects.find(p => p.id === newExpense.projectId)?.name || 'N/A';
     const siteName = sites.find(s => s.id === newExpense.siteId)?.name || 'N/A';
     const subcategory = category?.subcategories?.find(sc => sc.id === newExpense.subcategoryId);
@@ -285,7 +307,6 @@ const App: React.FC = () => {
     const updatedExpense = { ...expenseToUpdate, status: newStatus, history: updatedHistory };
     setExpenses(prev => prev.map(e => e.id === expenseId ? updatedExpense : e));
 
-    // Notifications
     const requestor = users.find(u => u.id === expenseToUpdate.requestorId);
     const category = categories.find(c => c.id === expenseToUpdate.categoryId);
     const subcategory = category?.subcategories?.find(sc => sc.id === expenseToUpdate.subcategoryId);
@@ -303,7 +324,6 @@ const App: React.FC = () => {
 
    const handleBulkUpdateExpenseStatus = async (expenseIds: string[], newStatus: Status, comment?: string) => {
     for (const id of expenseIds) {
-        // This is inefficient but simple. For production, a stored procedure would be better.
         await handleUpdateExpenseStatus(id, newStatus, comment);
     }
     let actionVerb = '';
@@ -379,13 +399,14 @@ const App: React.FC = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
+  if (needsAdminSetup) {
+    return <AdminSetup />;
+  }
+
   if (!session || !currentUser) {
     return <Login />;
   }
   
-  // Note: All backup related functionality has been removed in favor of Supabase's built-in platform features.
-  // The props related to backups are removed from Dashboard.
-
   return (
     <Dashboard
       currentUser={currentUser}
