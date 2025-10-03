@@ -29,7 +29,7 @@ interface DashboardProps {
   onBulkUpdateExpenseStatus: (expenseIds: string[], newStatus: Status, comment?: string) => void;
   onAddUser: (user: Omit<User, 'id'>) => void;
   onUpdateUser: (user: User) => void;
-  onDeleteUser: (userId: string) => void;
+  onToggleUserStatus: (user: User) => void;
   onResetUserPassword: (userEmail: string, userName: string) => void;
   onAddCategory: (category: Omit<Category, 'id'>) => void;
   onUpdateCategory: (category: Category) => void;

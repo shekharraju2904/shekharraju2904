@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense } from '../types';
-import { PencilIcon, TrashIcon, PlusIcon, KeyIcon } from './Icons';
+import { PencilIcon, TrashIcon, PlusIcon, KeyIcon, BanIcon, CheckCircleIcon } from './Icons';
 import Modal from './Modal';
 
 interface AdminPanelProps {
@@ -12,7 +12,7 @@ interface AdminPanelProps {
   auditLog: AuditLogItem[];
   onAddUser: (user: Omit<User, 'id'>) => void;
   onUpdateUser: (user: User) => void;
-  onDeleteUser: (userId: string) => void;
+  onToggleUserStatus: (user: User) => void;
   onResetUserPassword: (userEmail: string, userName: string) => void;
   onAddCategory: (category: Omit<Category, 'id'>) => void;
   onUpdateCategory: (category: Category) => void;
@@ -33,7 +33,7 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
   users, categories, projects, sites, auditLog,
-  onAddUser, onUpdateUser, onDeleteUser, onResetUserPassword,
+  onAddUser, onUpdateUser, onToggleUserStatus, onResetUserPassword,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
@@ -83,12 +83,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const name = formData.get('name') as string;
     const username = formData.get('username') as string;
     const role = formData.get('role') as Role;
-    const email = formData.get('email') as string;
 
     if (editingUser) {
-        onUpdateUser({ ...editingUser, name, username, role, email });
+        // Construct object with only the editable fields, preserving the original email and other data.
+        const userToUpdate: User = {
+          ...editingUser,
+          name,
+          username,
+          role,
+        };
+        onUpdateUser(userToUpdate);
     }
-    // "Add User" is removed as users must sign up themselves
     setUserModalOpen(false);
     setEditingUser(null);
   }
@@ -211,6 +216,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Username</th>
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Role</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
                                         <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
                                     </tr>
                                 </thead>
@@ -220,13 +226,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                             <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-6">{user.name}</td>
                                             <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.username}</td>
                                             <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.email}</td>
-                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.role}</td>
+                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap capitalize">{user.role}</td>
+                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                    {user.status}
+                                                </span>
+                                            </td>
                                             <td className="relative flex items-center justify-end py-4 pl-3 pr-4 space-x-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
                                                 <button onClick={() => onResetUserPassword(user.email, user.name)} className="text-secondary hover:text-green-700" title="Send Password Reset">
                                                     <KeyIcon className="w-4 h-4" />
                                                 </button>
                                                 <button onClick={() => handleOpenUserModal(user)} className="text-primary hover:text-primary-hover" title="Edit User"><PencilIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => onDeleteUser(user.id)} className="text-red-600 hover:text-red-800" title="Delete User"><TrashIcon className="w-4 h-4" /></button>
+                                                <button onClick={() => onToggleUserStatus(user)} className={user.status === 'active' ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'} title={user.status === 'active' ? 'Disable User' : 'Enable User'}>
+                                                    {user.status === 'active' ? <BanIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

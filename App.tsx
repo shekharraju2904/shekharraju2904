@@ -24,6 +24,7 @@ const mapDbUserToAppUser = (dbProfile: any): User => ({
   name: dbProfile.name,
   email: dbProfile.email,
   role: dbProfile.role as Role,
+  status: dbProfile.status,
 });
 
 const App: React.FC = () => {
@@ -198,7 +199,14 @@ const App: React.FC = () => {
         if (error) {
           console.error('Error fetching user profile:', error);
         } else if (data) {
-          setCurrentUser(mapDbUserToAppUser(data));
+          const user = mapDbUserToAppUser(data);
+          if (user.status === 'disabled') {
+              alert("Your account has been disabled. Please contact an administrator.");
+              supabase.auth.signOut();
+              setCurrentUser(null);
+          } else {
+              setCurrentUser(user);
+          }
         }
       } else {
         setCurrentUser(null);
@@ -455,8 +463,21 @@ const App: React.FC = () => {
     }
   };
   
-  const onDeleteUser = async (userId: string) => {
-     alert("User deletion is an administrative action that should be handled in the Supabase dashboard for security reasons (e.g., to properly handle related data).");
+  const handleToggleUserStatus = async (userToUpdate: User) => {
+    const newStatus = userToUpdate.status === 'active' ? 'disabled' : 'active';
+    const action = newStatus === 'disabled' ? 'disable' : 'enable';
+    if (!window.confirm(`Are you sure you want to ${action} the user account for ${userToUpdate.name}?`)) {
+        return;
+    }
+    
+    const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userToUpdate.id);
+    
+    if (error) {
+        alert(`Failed to update user status: ${error.message}`);
+    } else {
+        addAuditLogEntry('User Status Changed', `Set user '${userToUpdate.name}' status to ${newStatus}.`);
+        await fetchData();
+    }
   };
 
   const handleResetUserPassword = async (userEmail: string, userName: string) => {
@@ -606,7 +627,7 @@ const App: React.FC = () => {
       onBulkUpdateExpenseStatus={handleBulkUpdateExpenseStatus}
       onAddUser={() => alert("Users must sign up themselves.")}
       onUpdateUser={handleUpdateUser}
-      onDeleteUser={onDeleteUser}
+      onToggleUserStatus={handleToggleUserStatus}
       onResetUserPassword={handleResetUserPassword}
       onAddCategory={handleAddCategory}
       onUpdateCategory={handleUpdateCategory}

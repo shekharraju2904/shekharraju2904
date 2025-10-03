@@ -10,6 +10,7 @@ create table profiles (
   name text,
   email text,
   role text default 'requestor'::text,
+  status text default 'active'::text not null,
   updated_at timestamp with time zone,
 
   constraint username_length check (char_length(username) >= 3)

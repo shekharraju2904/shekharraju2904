@@ -18,6 +18,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  status: 'active' | 'disabled';
 }
 
 export interface Project {
