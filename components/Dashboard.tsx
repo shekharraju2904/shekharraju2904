@@ -27,6 +27,7 @@ interface DashboardProps {
   onAddUser: (user: Omit<User, 'id'>) => void;
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
+  onResetUserPassword: (userEmail: string, userName: string) => void;
   onAddCategory: (category: Omit<Category, 'id'>) => void;
   onUpdateCategory: (category: Category) => void;
   onDeleteCategory: (categoryId: string) => void;

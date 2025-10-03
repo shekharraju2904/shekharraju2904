@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense } from '../types';
-import { PencilIcon, TrashIcon, PlusIcon } from './Icons';
+import { PencilIcon, TrashIcon, PlusIcon, KeyIcon } from './Icons';
 import Modal from './Modal';
 
 interface AdminPanelProps {
@@ -13,6 +13,7 @@ interface AdminPanelProps {
   onAddUser: (user: Omit<User, 'id'>) => void;
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
+  onResetUserPassword: (userEmail: string, userName: string) => void;
   onAddCategory: (category: Omit<Category, 'id'>) => void;
   onUpdateCategory: (category: Category) => void;
   onDeleteCategory: (categoryId: string) => void;
@@ -31,7 +32,7 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
   users, categories, projects, sites, auditLog,
-  onAddUser, onUpdateUser, onDeleteUser,
+  onAddUser, onUpdateUser, onDeleteUser, onResetUserPassword,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
@@ -208,7 +209,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Username</th>
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Role</th>
-                                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Edit</span></th>
+                                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -218,9 +219,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                             <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.username}</td>
                                             <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.email}</td>
                                             <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{user.role}</td>
-                                            <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
-                                                <button onClick={() => handleOpenUserModal(user)} className="text-primary hover:text-primary-hover"><PencilIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => onDeleteUser(user.id)} className="ml-4 text-red-600 hover:text-red-800"><TrashIcon className="w-4 h-4" /></button>
+                                            <td className="relative flex items-center justify-end py-4 pl-3 pr-4 space-x-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
+                                                <button onClick={() => onResetUserPassword(user.email, user.name)} className="text-secondary hover:text-green-700" title="Send Password Reset">
+                                                    <KeyIcon className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => handleOpenUserModal(user)} className="text-primary hover:text-primary-hover" title="Edit User"><PencilIcon className="w-4 h-4" /></button>
+                                                <button onClick={() => onDeleteUser(user.id)} className="text-red-600 hover:text-red-800" title="Delete User"><TrashIcon className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
                                     ))}

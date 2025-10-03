@@ -340,10 +340,24 @@ const App: React.FC = () => {
     const siteName = sites.find(s => s.id === expenseToUpdate.siteId)?.name || 'N/A';
 
     if (requestor && category) {
+        // Always notify the original requestor of any status change.
         Notifications.notifyOnStatusChange(requestor, updatedExpense, category.name, subcategory?.name, projectName, siteName, comment);
-        if (expenseToUpdate.status === Status.PENDING_VERIFICATION && newStatus === Status.PENDING_APPROVAL) {
+        
+        // If a VERIFIER just acted, notify the APPROVERS.
+        if (currentUser.role === Role.VERIFIER && newStatus === Status.PENDING_APPROVAL) {
             const approvers = users.filter(u => u.role === Role.APPROVER);
             Notifications.notifyApproversOnVerification(approvers, updatedExpense, category.name, subcategory?.name, projectName, siteName);
+        }
+
+        // If an APPROVER just acted, notify the VERIFIER who took the previous step.
+        if (currentUser.role === Role.APPROVER && (newStatus === Status.APPROVED || newStatus === Status.REJECTED)) {
+            const verifierAction = updatedHistory.find(h => h.action === 'Verified');
+            if (verifierAction) {
+                const verifier = users.find(u => u.id === verifierAction.actorId);
+                if (verifier) {
+                    Notifications.notifyVerifierOnFinalAction(verifier, currentUser, updatedExpense, category.name, subcategory?.name, projectName, siteName, comment);
+                }
+            }
         }
     }
   };
@@ -375,6 +389,20 @@ const App: React.FC = () => {
   
   const onDeleteUser = async (userId: string) => {
      alert("User deletion is an administrative action that should be handled in the Supabase dashboard for security reasons (e.g., to properly handle related data).");
+  };
+
+  const handleResetUserPassword = async (userEmail: string, userName: string) => {
+    if (!window.confirm(`Are you sure you want to send a password reset link to ${userName}? This will allow them to set a new password.`)) {
+        return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail);
+    if (error) {
+        alert(`Failed to send password reset email: ${error.message}`);
+        console.error(error);
+    } else {
+        alert(`Password reset link sent successfully to ${userEmail}.`);
+        addAuditLogEntry('User Password Reset', `Sent password reset link to '${userName}'.`);
+    }
   };
   
   // FIX: Changed 'operation' type from 'Promise<any>' to 'any' to correctly handle Supabase's 'thenable' but not fully Promise-compliant query builder objects.
@@ -450,6 +478,7 @@ const App: React.FC = () => {
       onAddUser={() => alert("Users must sign up themselves.")}
       onUpdateUser={handleUpdateUser}
       onDeleteUser={onDeleteUser}
+      onResetUserPassword={handleResetUserPassword}
       onAddCategory={handleAddCategory}
       onUpdateCategory={handleUpdateCategory}
       onDeleteCategory={onDeleteCategory}

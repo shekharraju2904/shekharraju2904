@@ -152,6 +152,33 @@ export const notifyApproversOnVerification = (approvers: User[], expense: Expens
     approvers.forEach(approver => sendEmailNotification(approver, subject, body));
 };
 
+export const notifyVerifierOnFinalAction = (
+    verifier: User,
+    approver: User,
+    expense: Expense,
+    categoryName: string,
+    subcategoryName: string | undefined,
+    projectName: string,
+    siteName: string,
+    comment?: string
+) => {
+    const statusText = expense.status === Status.APPROVED ? 'Approved' : 'Rejected';
+    const subject = `Update on expense ${expense.referenceNumber} you verified`;
+    const body = `
+        Hi ${verifier.name},
+
+        The expense request from ${expense.requestorName} that you verified has now been ${statusText.toLowerCase()} by ${approver.name}.
+
+        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName)}
+
+        Final Status: ${expense.status}
+        ${comment ? `Approver/Rejector Comment: "${comment}"\n` : ''}
+        This completes the workflow for this item. No further action is needed from you.
+    `;
+    sendEmailNotification(verifier, subject, body);
+};
+
+
 export const sendBackupEmail = (admins: User[], backupData: string) => {
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
