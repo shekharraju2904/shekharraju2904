@@ -45,8 +45,24 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = (props) => {
   const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, ...adminProps } = props;
   const [activeTab, setActiveTab] = useState('overview');
+  const [adminPanelTab, setAdminPanelTab] = useState('users');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
   const [modalExpense, setModalExpense] = useState<Expense | null>(null);
+
+  const handleSelectAdminItem = (itemType: 'category' | 'project' | 'site') => {
+    setActiveTab('tasks');
+    switch (itemType) {
+        case 'category':
+            setAdminPanelTab('categories');
+            break;
+        case 'project':
+            setAdminPanelTab('projects');
+            break;
+        case 'site':
+            setAdminPanelTab('sites');
+            break;
+    }
+  };
 
 
   const getRoleSpecificTabName = () => {
@@ -69,6 +85,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             categories={categories}
             projects={projects}
             sites={sites}
+            activeAdminTab={adminPanelTab}
+            setActiveAdminTab={setAdminPanelTab}
           />
         );
       case Role.REQUESTOR:
@@ -141,6 +159,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         projects={projects}
         sites={sites}
         onSelectExpense={setModalExpense}
+        onSelectAdminItem={handleSelectAdminItem}
       />
       <main className="py-10">
         <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">

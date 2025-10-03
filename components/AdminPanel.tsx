@@ -25,6 +25,8 @@ interface AdminPanelProps {
   onAddSite: (site: Omit<Site, 'id'>) => void;
   onUpdateSite: (site: Site) => void;
   onDeleteSite: (siteId: string) => void;
+  activeAdminTab: string;
+  setActiveAdminTab: (tabId: string) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -34,8 +36,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
   onAddSite, onUpdateSite, onDeleteSite,
+  activeAdminTab, setActiveAdminTab
 }) => {
-  const [activeTab, setActiveTab] = useState('users');
   const [isUserModalOpen, setUserModalOpen] = useState(false);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
@@ -164,8 +166,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const TabButton = ({ tabId, label }: { tabId: string, label: string }) => (
      <button
-        onClick={() => setActiveTab(tabId)}
-        className={`${activeTab === tabId ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+        onClick={() => setActiveAdminTab(tabId)}
+        className={`${activeAdminTab === tabId ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
       >
         {label}
       </button>
@@ -187,7 +189,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       <div className="mt-8">
-        {activeTab === 'users' && (
+        {activeAdminTab === 'users' && (
           <div>
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
@@ -231,7 +233,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
         
-        {activeTab === 'categories' && (
+        {activeAdminTab === 'categories' && (
            <div>
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
@@ -280,7 +282,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {activeTab === 'subcategories' && (
+        {activeAdminTab === 'subcategories' && (
            <div>
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
@@ -329,7 +331,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
         
-        {activeTab === 'projects' && (
+        {activeAdminTab === 'projects' && (
           <div>
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
@@ -372,7 +374,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {activeTab === 'sites' && (
+        {activeAdminTab === 'sites' && (
           <div>
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
@@ -415,7 +417,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {activeTab === 'audit' && (
+        {activeAdminTab === 'audit' && (
           <div>
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
