@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Expense, Status, Role, Category, Project, Site } from '../types';
+import { Expense, Status, Role, Category, Project, Site, User, HistoryItem } from '../types';
 import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon, StarIcon } from './Icons';
 import { supabase } from '../supabaseClient';
+import Avatar from './Avatar';
 
 interface ExpenseCardProps {
   expense: Expense;
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  currentUser: User;
   userRole?: Role;
   onUpdateStatus?: (newStatus: Status, comment?: string) => void;
+  onAddComment: (expenseId: string, comment: string) => void;
   onToggleExpensePriority?: (expenseId: string) => void;
   onClose?: () => void;
 }
@@ -38,11 +41,39 @@ const getAttachmentUrl = (path: string | null): string | null => {
     return data.publicUrl;
 };
 
+const HistoryOrCommentItem: React.FC<{item: HistoryItem}> = ({ item }) => {
+    const isComment = item.action === 'Comment';
+    const isSystem = item.actorId === 'system';
 
-const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categories, projects, sites, userRole, onUpdateStatus, onToggleExpensePriority, onClose }) => {
+    return (
+        <div className="flex space-x-3">
+            <div>
+                {!isSystem ? <Avatar name={item.actorName} size="sm" /> : <div className="flex items-center justify-center w-8 h-8 text-xs font-bold text-gray-600 bg-gray-200 rounded-full">SYS</div>}
+            </div>
+            <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold">{item.actorName}</h4>
+                    <p className="text-xs text-gray-500">{formatDateTime(item.timestamp)}</p>
+                </div>
+                {isComment ? (
+                    <p className="text-sm text-gray-700">{item.comment}</p>
+                ) : (
+                    <>
+                        <p className="text-sm text-gray-600">Changed status to <span className="font-semibold">{item.action}</span></p>
+                        {item.comment && <p className="pl-2 mt-1 text-xs italic text-gray-600 border-l-2 border-gray-300">"{item.comment}"</p>}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categories, projects, sites, userRole, currentUser, onUpdateStatus, onAddComment, onToggleExpensePriority, onClose }) => {
     const [rejectionComment, setRejectionComment] = useState('');
     const [showRejectionInput, setShowRejectionInput] = useState(false);
     const [showHistory, setShowHistory] = useState(true);
+    const [newComment, setNewComment] = useState('');
 
     const category = categories.find(c => c.id === expense.categoryId);
     const categoryName = category?.name || 'Unknown';
@@ -73,6 +104,13 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categories, projects
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handleAddComment = () => {
+        if (newComment.trim()) {
+            onAddComment(expense.id, newComment.trim());
+            setNewComment('');
+        }
     };
     
     const canTakeAction = (userRole === Role.VERIFIER && expense.status === Status.PENDING_VERIFICATION) ||
@@ -134,20 +172,38 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categories, projects
             
              <div>
                 <button onClick={() => setShowHistory(!showHistory)} className="flex items-center justify-between w-full text-sm font-medium text-left text-gray-600 hover:text-gray-900">
-                    <span>Approval History</span>
+                    <span>Conversation & History</span>
                     <ChevronDownIcon className={`w-5 h-5 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
                 </button>
                 {showHistory && (
-                    <div className="mt-2 space-y-2 border-l-2 border-gray-200 pl-4">
-                        {expense.history.map((item, index) => (
-                            <div key={index}>
-                                <p className="text-sm font-medium text-gray-800">{item.action} by {item.actorName}</p>
-                                <p className="text-xs text-gray-500">{formatDateTime(item.timestamp)}</p>
-                                {item.comment && <p className="pl-2 mt-1 text-xs italic text-gray-600 border-l-2 border-gray-300">"{item.comment}"</p>}
-                            </div>
-                        ))}
+                    <div className="mt-2 space-y-4">
+                        {expense.history.map((item, index) => <HistoryOrCommentItem key={index} item={item} />)}
                     </div>
                 )}
+            </div>
+
+            <div className="pt-4 border-t">
+                <div className="flex items-start space-x-3">
+                    <Avatar name={currentUser.name} size="sm" />
+                    <div className="flex-1">
+                        <textarea
+                            rows={2}
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                            placeholder="Add a comment..."
+                        />
+                        <div className="flex justify-end mt-2">
+                            <button
+                                type="button"
+                                onClick={handleAddComment}
+                                className="px-3 py-1 text-sm font-semibold text-white rounded-md shadow-sm bg-primary hover:bg-primary-hover"
+                            >
+                                Post Comment
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Action buttons footer */}

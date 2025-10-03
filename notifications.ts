@@ -178,6 +178,21 @@ export const notifyVerifierOnFinalAction = (
     sendEmailNotification(verifier, subject, body);
 };
 
+export const notifyOnNewComment = (recipients: User[], commenter: User, expense: Expense, comment: string) => {
+    const subject = `💬 New comment on expense ${expense.referenceNumber}`;
+    const body = `
+        Hi,
+
+        ${commenter.name} has added a new comment to expense request ${expense.referenceNumber}.
+        
+        Comment:
+        "${comment}"
+        
+        Please log in to the portal to view the full conversation and take any necessary action.
+    `;
+    recipients.forEach(user => sendEmailNotification(user, subject, body));
+};
+
 
 export const sendBackupEmail = (admins: User[], backupData: string) => {
   const today = new Date();

@@ -213,28 +213,32 @@ const App: React.FC = () => {
 
     let attachment_path: string | null = null;
     if (expenseData.attachment) {
+      try {
         const file = expenseData.attachment;
         const filePath = `${currentUser.id}/${Date.now()}_${file.name}`;
         const { error } = await supabase.storage.from('attachments').upload(filePath, file);
-        if (error) {
-            alert('Failed to upload attachment.');
-            console.error(error);
-            return;
-        }
+        if (error) throw error;
         attachment_path = filePath;
+      } catch (error: any) {
+        alert(`Failed to upload attachment: ${error.message}`);
+        console.error(error);
+        return;
+      }
     }
 
     let subcategory_attachment_path: string | null = null;
     if (expenseData.subcategoryAttachment) {
+      try {
         const file = expenseData.subcategoryAttachment;
         const filePath = `${currentUser.id}/${Date.now()}_sub_${file.name}`;
         const { error } = await supabase.storage.from('attachments').upload(filePath, file);
-        if (error) {
-            alert('Failed to upload subcategory attachment.');
-            console.error(error);
-            return;
-        }
+        if (error) throw error;
         subcategory_attachment_path = filePath;
+      } catch (error: any) {
+        alert(`Failed to upload subcategory attachment: ${error.message}`);
+        console.error(error);
+        return;
+      }
     }
 
     const newExpense: Omit<Expense, 'id' | 'requestorName'> = {
@@ -266,26 +270,31 @@ const App: React.FC = () => {
       });
     }
 
-    const { error: insertError } = await supabase.from('expenses').insert({
-        ...newExpense,
-        // map App type to DB schema
-        reference_number: newExpense.referenceNumber,
-        requestor_id: newExpense.requestorId,
-        category_id: newExpense.categoryId,
-        subcategory_id: newExpense.subcategoryId,
-        project_id: newExpense.projectId,
-        site_id: newExpense.siteId,
-        submitted_at: newExpense.submittedAt,
-        is_high_priority: newExpense.isHighPriority,
-        attachment_path: newExpense.attachment_path,
-        subcategory_attachment_path: newExpense.subcategory_attachment_path,
-    });
-
-    if (insertError) {
-        alert("Failed to create expense.");
-        console.error(insertError);
-        return;
+    try {
+      const { error: insertError } = await supabase.from('expenses').insert({
+          ...newExpense,
+          // map App type to DB schema
+          reference_number: newExpense.referenceNumber,
+          requestor_id: newExpense.requestorId,
+          category_id: newExpense.categoryId,
+          subcategory_id: newExpense.subcategoryId,
+          project_id: newExpense.projectId,
+          site_id: newExpense.siteId,
+          submitted_at: newExpense.submittedAt,
+          is_high_priority: newExpense.isHighPriority,
+          attachment_path: newExpense.attachment_path,
+          subcategory_attachment_path: newExpense.subcategory_attachment_path,
+      });
+      if (insertError) throw insertError;
+    } catch(error: any) {
+       alert(`Failed to create expense request: ${error.message}`);
+       console.error(error);
+       // If insert fails, attempt to delete orphaned attachments
+       if (attachment_path) await supabase.storage.from('attachments').remove([attachment_path]);
+       if (subcategory_attachment_path) await supabase.storage.from('attachments').remove([subcategory_attachment_path]);
+       return;
     }
+
 
     await fetchData();
 
@@ -361,6 +370,42 @@ const App: React.FC = () => {
         }
     }
   };
+
+  const handleAddExpenseComment = async (expenseId: string, comment: string) => {
+    if (!currentUser || !comment.trim()) return;
+    const expenseToUpdate = expenses.find(e => e.id === expenseId);
+    if (!expenseToUpdate) return;
+    
+    const newHistoryItem = {
+        actorId: currentUser.id,
+        actorName: currentUser.name,
+        action: 'Comment',
+        timestamp: new Date().toISOString(),
+        comment
+    };
+    const updatedHistory = [...expenseToUpdate.history, newHistoryItem];
+    const { error } = await supabase.from('expenses').update({ history: updatedHistory }).eq('id', expenseId);
+
+    if (error) {
+        alert("Failed to add comment.");
+        console.error(error);
+    } else {
+        await fetchData(); // Refetch to show the new comment
+        // Notify relevant users
+        const participants = new Map<string, User>();
+        participants.set(expenseToUpdate.requestorId, users.find(u => u.id === expenseToUpdate.requestorId)!);
+        expenseToUpdate.history.forEach(h => {
+          if (h.actorId !== 'system') {
+            const user = users.find(u => u.id === h.actorId);
+            if (user) participants.set(user.id, user);
+          }
+        });
+        
+        const recipients = Array.from(participants.values()).filter(u => u.id !== currentUser.id);
+        const updatedExpense = { ...expenseToUpdate, history: updatedHistory };
+        Notifications.notifyOnNewComment(recipients, currentUser, updatedExpense, comment);
+    }
+};
 
    const handleBulkUpdateExpenseStatus = async (expenseIds: string[], newStatus: Status, comment?: string) => {
     for (const id of expenseIds) {
@@ -446,6 +491,66 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateUserProfile = async (name: string) => {
+    if (!currentUser) return;
+    const { error } = await supabase.from('profiles').update({ name }).eq('id', currentUser.id);
+    if (error) {
+      alert(`Failed to update profile: ${error.message}`);
+    } else {
+      alert('Profile updated successfully.');
+      setCurrentUser(prev => prev ? { ...prev, name } : null);
+      await fetchData();
+    }
+  };
+
+  const handleUpdateUserPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      alert(`Failed to update password: ${error.message}`);
+    } else {
+      alert('Password updated successfully.');
+    }
+  };
+
+  const handleTriggerBackup = async () => {
+    if (!currentUser || currentUser.role !== Role.ADMIN) {
+      alert("You are not authorized to perform this action.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to generate and email a full system backup? This may take a moment.")) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const [users, categories, projects, sites, expenses, auditLog] = await Promise.all([
+        supabase.from('profiles').select('*'),
+        supabase.from('categories').select('*, subcategories(*)'),
+        supabase.from('projects').select('*'),
+        supabase.from('sites').select('*'),
+        supabase.from('expenses').select('*'),
+        supabase.from('audit_log').select('*'),
+      ]);
+      const backupData = {
+        users: users.data,
+        categories: categories.data,
+        projects: projects.data,
+        sites: sites.data,
+        expenses: expenses.data,
+        auditLog: auditLog.data,
+        backupTimestamp: new Date().toISOString()
+      };
+      const admins = users.data?.filter(u => u.role === Role.ADMIN).map(mapDbUserToAppUser) || [];
+      Notifications.sendBackupEmail(admins, JSON.stringify(backupData, null, 2));
+      alert("Backup generated and sent to all administrators successfully.");
+      addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
+    } catch (error: any) {
+      alert(`Failed to generate backup: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isConfigured) {
     return <SupabaseInstructions onSave={handleSaveConfiguration} />;
   }
@@ -472,8 +577,9 @@ const App: React.FC = () => {
       expenses={expenses}
       auditLog={auditLog}
       onLogout={() => supabase.auth.signOut()}
-      onAddExpense={handleAddExpense as any}
+      onAddExpense={handleAddExpense}
       onUpdateExpenseStatus={handleUpdateExpenseStatus}
+      onAddExpenseComment={handleAddExpenseComment}
       onBulkUpdateExpenseStatus={handleBulkUpdateExpenseStatus}
       onAddUser={() => alert("Users must sign up themselves.")}
       onUpdateUser={handleUpdateUser}
@@ -492,6 +598,9 @@ const App: React.FC = () => {
       onAddSite={handleAddSite}
       onUpdateSite={handleUpdateSite}
       onDeleteSite={onDeleteSite}
+      onUpdateProfile={handleUpdateUserProfile}
+      onUpdatePassword={handleUpdateUserPassword}
+      onTriggerBackup={handleTriggerBackup}
     />
   );
 };

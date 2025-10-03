@@ -28,6 +28,7 @@ interface AdminPanelProps {
   onDeleteSite: (siteId: string) => void;
   activeAdminTab: string;
   setActiveAdminTab: (tabId: string) => void;
+  onTriggerBackup: () => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -37,7 +38,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
   onAddSite, onUpdateSite, onDeleteSite,
-  activeAdminTab, setActiveAdminTab
+  activeAdminTab, setActiveAdminTab, onTriggerBackup
 }) => {
   const [isUserModalOpen, setUserModalOpen] = useState(false);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -186,6 +187,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <TabButton tabId="projects" label="Project Management" />
           <TabButton tabId="sites" label="Site Management" />
           <TabButton tabId="audit" label="Audit Log" />
+          <TabButton tabId="system" label="System" />
         </nav>
       </div>
 
@@ -461,6 +463,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                     </div>
                 </div>
+            </div>
+          </div>
+        )}
+        
+        {activeAdminTab === 'system' && (
+          <div className="p-6 bg-white rounded-lg shadow">
+            <h3 className="text-base font-semibold leading-6 text-gray-900">System Actions</h3>
+            <div className="mt-4">
+              <div className="p-4 border rounded-md">
+                <h4 className="font-medium">Data Backup</h4>
+                <p className="mt-1 text-sm text-gray-600">Generate a full backup of the system data (Users, Expenses, Categories, etc.) and send it to all administrator email addresses. This action will be recorded in the audit log.</p>
+                <div className="mt-3">
+                  <button 
+                    onClick={onTriggerBackup} 
+                    type="button" 
+                    className="px-3 py-2 text-sm font-semibold text-white rounded-md shadow-sm bg-primary hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                      Trigger Backup Email
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
