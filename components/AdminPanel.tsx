@@ -500,8 +500,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <input type="text" name="username" id="username" defaultValue={editingUser?.username || ''} required className="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm" />
               </div>
                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-                  <input type="email" name="email" id="email" defaultValue={editingUser?.email || ''} required className="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm" />
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email (Read-only)</label>
+                  <input type="email" name="email" id="email" defaultValue={editingUser?.email || ''} required disabled className="block w-full mt-1 bg-gray-100 border-gray-300 rounded-md shadow-sm cursor-not-allowed focus:ring-primary focus:border-primary sm:text-sm" />
               </div>
                <div>
                   <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>

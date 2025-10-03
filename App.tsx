@@ -93,8 +93,22 @@ const App: React.FC = () => {
 
       if (expensesRes.error) throw expensesRes.error;
       const fetchedExpenses = expensesRes.data.map((e: any) => ({
-        ...e,
+        id: e.id,
+        referenceNumber: e.reference_number,
+        requestorId: e.requestor_id,
         requestorName: e.profiles.name,
+        categoryId: e.category_id,
+        subcategoryId: e.subcategory_id,
+        amount: e.amount,
+        description: e.description,
+        projectId: e.project_id,
+        siteId: e.site_id,
+        submittedAt: e.submitted_at,
+        status: e.status,
+        isHighPriority: e.is_high_priority,
+        attachment_path: e.attachment_path,
+        subcategory_attachment_path: e.subcategory_attachment_path,
+        history: e.history,
       }));
       setExpenses(fetchedExpenses);
 
@@ -423,13 +437,18 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUser = async (updatedUser: User) => {
+    // The user's email is tied to auth.users and cannot be changed from this form.
+    // We only update the profile data here.
     const { error } = await supabase.from('profiles').update({ 
       name: updatedUser.name,
       username: updatedUser.username,
-      role: updatedUser.role,
-      email: updatedUser.email
+      role: updatedUser.role
     }).eq('id', updatedUser.id);
-    if(error) console.error(error);
+
+    if(error) {
+      console.error("Failed to update user:", error);
+      alert(`Failed to update user: ${error.message}`);
+    }
     else {
       addAuditLogEntry('User Updated', `Updated profile for user '${updatedUser.username}'.`);
       await fetchData();
