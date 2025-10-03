@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 const sqlSchema = `-- 1. Enable pg_jsonschema extension
@@ -151,8 +152,15 @@ const SupabaseInstructions: React.FC = () => {
           <p>Go to <a href="https://supabase.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Supabase</a>, create a new project, and find your project's API URL and anon key in the API settings.</p>
           
           <h3 className="text-lg font-semibold">2. Configure Environment Variables</h3>
-          <p>You need to set the `SUPABASE_URL` and `SUPABASE_ANON_KEY` environment variables for this application to connect to your project. This is typically done in your hosting provider's settings or a local `.env` file.</p>
-          
+          <p>You need to set the environment variables for this application to connect to your project. In your Vercel project settings, add the following variables:</p>
+          <ul className="pl-5 space-y-1 list-disc">
+            <li>Name: <code className="px-1 py-0.5 text-sm bg-gray-100 rounded">VITE_SUPABASE_URL</code> | Value: Your project URL from Supabase.</li>
+            <li>Name: <code className="px-1 py-0.5 text-sm bg-gray-100 rounded">VITE_SUPABASE_ANON_KEY</code> | Value: Your anon key from Supabase.</li>
+          </ul>
+          <p className="text-sm text-gray-600">
+            <strong>Important:</strong> The `VITE_` prefix is required for the app to access these keys.
+          </p>
+
           <h3 className="text-lg font-semibold">3. Create Database Schema</h3>
           <p>Go to the "SQL Editor" in your Supabase project dashboard, click "New query", and paste the entire SQL script below. Click "RUN" to create all the necessary tables and policies.</p>
           
@@ -169,9 +177,9 @@ const SupabaseInstructions: React.FC = () => {
           </div>
 
           <h3 className="text-lg font-semibold">4. Create Your Admin Account</h3>
-          <p>After completing the steps above and redeploying/refreshing your application, it will automatically detect that no admin exists and will present you with a form to create the first administrator account.</p>
+          <p>After completing the steps above, Vercel will create a new deployment. Once it's live, open your app's URL. It will automatically detect that no admin exists and will present you with a form to create the first administrator account.</p>
          
-           <p className="pt-4 font-bold text-center">Once these steps are completed, please refresh this page.</p>
+           <p className="pt-4 font-bold text-center">Once these steps are completed, your application will be live.</p>
 
         </div>
       </div>
