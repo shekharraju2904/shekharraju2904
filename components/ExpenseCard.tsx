@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Expense, Status, Role, Category, Project, Site } from '../types';
 import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon, StarIcon } from './Icons';
+import { supabase } from '../supabaseClient';
 
 interface ExpenseCardProps {
   expense: Expense;
@@ -31,6 +32,12 @@ const formatDateTime = (isoString: string) => {
     return `${formatDate(isoString)} ${hours}:${minutes}:${seconds}`;
 };
 
+const getAttachmentUrl = (path: string | null): string | null => {
+    if (!path) return null;
+    const { data } = supabase.storage.from('attachments').getPublicUrl(path);
+    return data.publicUrl;
+};
+
 
 const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categories, projects, sites, userRole, onUpdateStatus, onToggleExpensePriority, onClose }) => {
     const [rejectionComment, setRejectionComment] = useState('');
@@ -43,6 +50,10 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categories, projects
     const projectName = projects.find(p => p.id === expense.projectId)?.name || 'Unknown Project';
     const siteName = sites.find(s => s.id === expense.siteId)?.name || 'Unknown Site';
 
+    const attachmentUrl = getAttachmentUrl(expense.attachment_path);
+    const subcategoryAttachmentUrl = getAttachmentUrl(expense.subcategory_attachment_path);
+    const attachmentName = expense.attachment_path?.split('/').pop();
+    const subcategoryAttachmentName = expense.subcategory_attachment_path?.split('/').pop();
 
     const handleApprove = () => {
         if (!onUpdateStatus) return;
@@ -91,28 +102,32 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categories, projects
                 <p className="mt-1 text-sm text-gray-600">{expense.description}</p>
             </div>
             
-            {expense.attachment && (
+            {attachmentUrl && (
                 <div className="p-3 border rounded-md">
                      <a 
-                        href={`data:${expense.attachment.type};base64,${expense.attachment.data}`} 
-                        download={expense.attachment.name} 
+                        href={attachmentUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary hover:bg-primary-hover"
                     >
                         <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-                        Download Category Attachment ({expense.attachment.name})
+                        Download Category Attachment ({attachmentName})
                     </a>
                 </div>
             )}
             
-            {expense.subcategoryAttachment && (
+            {subcategoryAttachmentUrl && (
                 <div className="p-3 border rounded-md">
                      <a 
-                        href={`data:${expense.subcategoryAttachment.type};base64,${expense.subcategoryAttachment.data}`} 
-                        download={expense.subcategoryAttachment.name} 
+                        href={subcategoryAttachmentUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-secondary hover:bg-green-600"
                     >
                         <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-                        Download Subcategory Attachment ({expense.subcategoryAttachment.name})
+                        Download Subcategory Attachment ({subcategoryAttachmentName})
                     </a>
                 </div>
             )}

@@ -20,8 +20,6 @@ interface DashboardProps {
   sites: Site[];
   expenses: Expense[];
   auditLog: AuditLogItem[];
-  isDailyBackupEnabled: boolean;
-  availableBackups: AvailableBackups;
   onLogout: () => void;
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber'>) => void;
   onUpdateExpenseStatus: (expenseId: string, newStatus: Status, comment?: string) => void;
@@ -42,15 +40,9 @@ interface DashboardProps {
   onAddSite: (site: Omit<Site, 'id'>) => void;
   onUpdateSite: (site: Site) => void;
   onDeleteSite: (siteId: string) => void;
-  onToggleDailyBackup: () => void;
-  onManualBackup: () => void;
-  onImportBackup: (file: File) => void;
-  onCreateMirrorBackup: () => void;
-  onDownloadSpecificBackup: (key: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-  // FIX: Removed non-existent 'setModalExpense' prop from destructuring.
   const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, ...adminProps } = props;
   const [activeTab, setActiveTab] = useState('overview');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
@@ -70,7 +62,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const renderRoleSpecificContent = () => {
     switch (currentUser.role) {
       case Role.ADMIN:
-        // FIX: Pass missing 'expenses', 'categories', 'projects', and 'sites' props to AdminPanel.
         return (
           <AdminPanel 
             {...adminProps}
@@ -125,7 +116,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     }
   };
 
-  // Filter expenses for the overview dashboard based on user role
   const overviewExpenses = currentUser.role === Role.REQUESTOR
     ? expenses.filter(e => e.requestorId === currentUser.id)
     : expenses;

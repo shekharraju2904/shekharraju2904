@@ -17,7 +17,6 @@ export interface User {
   username: string;
   name: string;
   email: string;
-  password?: string;
   role: Role;
 }
 
@@ -46,12 +45,6 @@ export interface Category {
   subcategories?: Subcategory[];
 }
 
-export interface ExpenseAttachment {
-  name: string;
-  type: string;
-  data: string; // base64
-}
-
 export interface HistoryItem {
   actorId: string;
   actorName: string;
@@ -74,8 +67,8 @@ export interface Expense {
   submittedAt: string; // ISO string
   status: Status;
   isHighPriority?: boolean;
-  attachment?: ExpenseAttachment;
-  subcategoryAttachment?: ExpenseAttachment;
+  attachment_path: string | null;
+  subcategory_attachment_path: string | null;
   history: HistoryItem[];
 }
 
@@ -88,6 +81,7 @@ export interface AuditLogItem {
   details: string;
 }
 
+// This type is no longer needed with Supabase, but keeping it for reference if needed elsewhere.
 export interface AvailableBackups {
   daily: string[];
   mirror: string[];

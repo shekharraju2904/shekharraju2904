@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense, AvailableBackups } from '../types';
-import { PencilIcon, TrashIcon, PlusIcon, DocumentArrowDownIcon, UploadIcon } from './Icons';
+import React, { useState } from 'react';
+import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense } from '../types';
+import { PencilIcon, TrashIcon, PlusIcon } from './Icons';
 import Modal from './Modal';
 
 interface AdminPanelProps {
@@ -10,8 +10,6 @@ interface AdminPanelProps {
   sites: Site[];
   expenses: Expense[];
   auditLog: AuditLogItem[];
-  isDailyBackupEnabled: boolean;
-  availableBackups: AvailableBackups;
   onAddUser: (user: Omit<User, 'id'>) => void;
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
@@ -27,21 +25,15 @@ interface AdminPanelProps {
   onAddSite: (site: Omit<Site, 'id'>) => void;
   onUpdateSite: (site: Site) => void;
   onDeleteSite: (siteId: string) => void;
-  onToggleDailyBackup: () => void;
-  onManualBackup: () => void;
-  onImportBackup: (file: File) => void;
-  onCreateMirrorBackup: () => void;
-  onDownloadSpecificBackup: (key: string) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
-  users, categories, projects, sites, auditLog, isDailyBackupEnabled, availableBackups,
+  users, categories, projects, sites, auditLog,
   onAddUser, onUpdateUser, onDeleteUser,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
   onAddSite, onUpdateSite, onDeleteSite,
-  onToggleDailyBackup, onManualBackup, onImportBackup, onCreateMirrorBackup, onDownloadSpecificBackup
 }) => {
   const [activeTab, setActiveTab] = useState('users');
   const [isUserModalOpen, setUserModalOpen] = useState(false);
@@ -55,8 +47,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingSubcategory, setEditingSubcategory] = useState<{ subcategory: Subcategory, categoryId: string } | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
-
-  const importBackupInputRef = useRef<HTMLInputElement>(null);
 
   const handleOpenUserModal = (user: User | null = null) => {
     setEditingUser(user);
@@ -89,18 +79,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const name = formData.get('name') as string;
     const username = formData.get('username') as string;
     const role = formData.get('role') as Role;
-    const password = formData.get('password') as string;
     const email = formData.get('email') as string;
 
     if (editingUser) {
-        const updatedData: Partial<User> = { name, username, role, email };
-        if (password) {
-            updatedData.password = password;
-        }
-        onUpdateUser({ ...editingUser, ...updatedData });
-    } else {
-        onAddUser({ name, username, role, password, email });
+        onUpdateUser({ ...editingUser, name, username, role, email });
     }
+    // "Add User" is removed as users must sign up themselves
     setUserModalOpen(false);
     setEditingUser(null);
   }
@@ -178,20 +162,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
-  const handleImportClick = () => {
-    importBackupInputRef.current?.click();
-  };
-
-  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-        onImportBackup(file);
-    }
-    // Reset file input to allow selecting the same file again
-    event.target.value = '';
-  };
-
-
   const TabButton = ({ tabId, label }: { tabId: string, label: string }) => (
      <button
         onClick={() => setActiveTab(tabId)}
@@ -213,7 +183,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <TabButton tabId="projects" label="Project Management" />
           <TabButton tabId="sites" label="Site Management" />
           <TabButton tabId="audit" label="Audit Log" />
-          <TabButton tabId="backup" label="Backup & Export" />
         </nav>
       </div>
 
@@ -223,12 +192,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
                 <h3 className="text-base font-semibold leading-6 text-gray-900">Users</h3>
-                <p className="mt-2 text-sm text-gray-700">A list of all the users in the system.</p>
-              </div>
-              <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-                <button onClick={() => handleOpenUserModal()} type="button" className="inline-flex items-center px-3 py-2 text-sm font-semibold text-white rounded-md shadow-sm bg-primary hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                    <PlusIcon className="w-5 h-5 mr-2" /> Add user
-                </button>
+                <p className="mt-2 text-sm text-gray-700">A list of all the users in the system. New users must sign up themselves.</p>
               </div>
             </div>
             <div className="flow-root mt-8">
@@ -495,97 +459,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {activeTab === 'backup' && (
-          <div>
-            <div className="sm:flex-auto">
-                <h3 className="text-base font-semibold leading-6 text-gray-900">Backup & Export</h3>
-                <p className="mt-2 text-sm text-gray-700">Manage data import, export, and retention policies.</p>
-            </div>
-            <div className="grid grid-cols-1 gap-8 mt-8 lg:grid-cols-2">
-                
-                {/* Left Column */}
-                <div className="space-y-6">
-                    {/* Import Section */}
-                    <div className="p-6 bg-white rounded-lg shadow">
-                        <h4 className="font-semibold text-gray-800">Import & Restore</h4>
-                        <p className="mt-1 text-sm text-gray-600">Restore the application state from a JSON backup file. <span className="font-bold text-red-600">Warning: This will overwrite all current data.</span></p>
-                        <input type="file" ref={importBackupInputRef} className="hidden" accept="application/json" onChange={handleFileSelected} />
-                        <div className="mt-4">
-                            <button type="button" onClick={handleImportClick} className="inline-flex items-center px-3 py-2 text-sm font-semibold text-white bg-yellow-600 rounded-md shadow-sm hover:bg-yellow-700">
-                                <UploadIcon className="w-5 h-5 mr-2" />
-                                Import from Backup
-                            </button>
-                        </div>
-                    </div>
-
-                     {/* Ad-hoc Backup Section */}
-                    <div className="p-6 bg-white rounded-lg shadow">
-                        <h4 className="font-semibold text-gray-800">Ad-Hoc Manual Backup</h4>
-                        <p className="mt-1 text-sm text-gray-600">Generate and download a full JSON backup of all system data immediately. This backup is not stored automatically.</p>
-                        <div className="mt-4">
-                            <button type="button" onClick={onManualBackup} className="inline-flex items-center px-3 py-2 text-sm font-semibold text-white rounded-md shadow-sm bg-primary hover:bg-primary-hover">
-                                <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-                                Download Backup Now
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Mirror Backup Section */}
-                    <div className="p-6 bg-white rounded-lg shadow">
-                        <h4 className="font-semibold text-gray-800">Mirror Backup (6-Month Retention)</h4>
-                        <p className="mt-1 text-sm text-gray-600">Create a long-term mirror backup. Backups older than 6 months will be automatically deleted.</p>
-                         <div className="mt-4">
-                            <button type="button" onClick={onCreateMirrorBackup} className="inline-flex items-center px-3 py-2 text-sm font-semibold text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700">
-                                Create 6-Month Mirror Backup
-                            </button>
-                        </div>
-                        <div className="mt-4">
-                            <h5 className="text-sm font-medium text-gray-700">Available Mirror Backups:</h5>
-                            <ul className="mt-2 space-y-2 text-sm text-gray-600 max-h-40 overflow-y-auto">
-                                {availableBackups.mirror.length > 0 ? availableBackups.mirror.map(key => (
-                                    <li key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                                        <span className="font-mono">{key.replace('mirror_backup_', '')}</span>
-                                        <button onClick={() => onDownloadSpecificBackup(key)} className="text-primary hover:text-primary-hover"><DocumentArrowDownIcon className="w-5 h-5" /></button>
-                                    </li>
-                                )) : <li className="text-gray-500">No mirror backups found.</li>}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-6">
-                    {/* Automatic Backup Section */}
-                    <div className="p-6 bg-white rounded-lg shadow">
-                        <h4 className="font-semibold text-gray-800">Automatic Daily Backups (20-Day Retention)</h4>
-                        <p className="mt-1 text-sm text-gray-600">If enabled, a backup is created daily at 12:05 AM, an email is sent to admins, and the last 20 backups are retained.</p>
-                        <div className="flex items-center mt-4">
-                            <button type="button" className={`${isDailyBackupEnabled ? 'bg-primary' : 'bg-gray-200'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`} role="switch" aria-checked={isDailyBackupEnabled} onClick={onToggleDailyBackup}>
-                                <span className="sr-only">Toggle daily backups</span>
-                                <span aria-hidden="true" className={`${isDailyBackupEnabled ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`} />
-                            </button>
-                            <span className="ml-3 text-sm font-medium text-gray-900">{isDailyBackupEnabled ? 'Enabled' : 'Disabled'}</span>
-                        </div>
-                        <div className="mt-4">
-                            <h5 className="text-sm font-medium text-gray-700">Recent Daily Backups:</h5>
-                            <ul className="mt-2 space-y-2 text-sm text-gray-600 max-h-96 overflow-y-auto">
-                                {availableBackups.daily.length > 0 ? availableBackups.daily.map(key => (
-                                    <li key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                                        <span className="font-mono">{key.replace('backup_', '')}</span>
-                                        <button onClick={() => onDownloadSpecificBackup(key)} className="text-primary hover:text-primary-hover"><DocumentArrowDownIcon className="w-5 h-5" /></button>
-                                    </li>
-                                )) : <li className="text-gray-500">No recent daily backups found.</li>}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-          </div>
-        )}
       </div>
 
-      <Modal isOpen={isUserModalOpen} onClose={() => setUserModalOpen(false)} title={editingUser ? 'Edit User' : 'Add User'}>
+      <Modal isOpen={isUserModalOpen} onClose={() => setUserModalOpen(false)} title={'Edit User'}>
           <form onSubmit={handleUserFormSubmit} className="space-y-4">
               <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
@@ -604,17 +480,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <select id="role" name="role" defaultValue={editingUser?.role || Role.REQUESTOR} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                       {Object.values(Role).map(role => <option key={role} value={role}>{role}</option>)}
                   </select>
-              </div>
-              <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-                  <input 
-                      type="password" 
-                      name="password" 
-                      id="password"
-                      autoComplete="new-password"
-                      placeholder={editingUser ? 'Leave blank to keep unchanged' : ''}
-                      required={!editingUser}
-                      className="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm" />
               </div>
               <div className="pt-4 text-right">
                   <button type="button" onClick={() => setUserModalOpen(false)} className="px-4 py-2 mr-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50">Cancel</button>

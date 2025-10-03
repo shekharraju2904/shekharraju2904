@@ -1,24 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Category, Expense, ExpenseAttachment, Project, Site } from '../types';
+import { Category, Expense, Project, Site } from '../types';
 import { PaperClipIcon, XCircleIcon } from './Icons';
 
 interface ExpenseFormProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
-  onSubmit: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber'>) => void;
+  onSubmit: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
   onClose: () => void;
 }
-
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = error => reject(error);
-  });
-};
-
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, onSubmit, onClose }) => {
   const [categoryId, setCategoryId] = useState<string>(categories[0]?.id || '');
@@ -27,8 +17,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
   const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState<string>(projects[0]?.id || '');
   const [siteId, setSiteId] = useState<string>(sites[0]?.id || '');
-  const [attachment, setAttachment] = useState<ExpenseAttachment | undefined>(undefined);
-  const [subcategoryAttachment, setSubcategoryAttachment] = useState<ExpenseAttachment | undefined>(undefined);
+  const [attachment, setAttachment] = useState<File | undefined>(undefined);
+  const [subcategoryAttachment, setSubcategoryAttachment] = useState<File | undefined>(undefined);
   const [showSubcategoryAttachmentInput, setShowSubcategoryAttachmentInput] = useState(false);
   const [error, setError] = useState('');
 
@@ -67,15 +57,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const base64 = await fileToBase64(file);
-      setAttachment({
-          name: file.name,
-          type: file.type,
-          data: base64
-      });
+      setAttachment(e.target.files[0]);
     }
   };
 
@@ -86,15 +70,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
     }
   };
   
-  const handleSubcategoryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSubcategoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const base64 = await fileToBase64(file);
-      setSubcategoryAttachment({
-          name: file.name,
-          type: file.type,
-          data: base64
-      });
+      setSubcategoryAttachment(e.target.files[0]);
     }
   };
 
@@ -106,8 +84,6 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
       setError(`An attachment is required for the '${selectedCategory.name}' category.`);
       return;
     }
-    
-    // Subcategory attachment validation is removed to make it optional for the requestor.
     
     if (!categoryId || !amount || !description || !projectId || !siteId) {
         setError("All fields are required.");

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Expense, Category, Status, ExpenseAttachment, Project, Site } from '../types';
+import { Expense, Category, Status, Project, Site } from '../types';
 import { DocumentArrowDownIcon } from './Icons';
+import { supabase } from '../supabaseClient';
 
 interface AttachmentsDashboardProps {
   expenses: Expense[];
@@ -18,6 +19,20 @@ const formatDate = (isoString: string) => {
     return `${day}/${month}/${year}`;
 };
 
+const getAttachmentUrl = (path: string | null): string | null => {
+    if (!path) return null;
+    const { data } = supabase.storage.from('attachments').getPublicUrl(path);
+    return data.publicUrl;
+};
+
+interface AttachmentInfo {
+    expense: Expense;
+    path: string;
+    url: string;
+    name: string;
+    type: string;
+}
+
 const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, categories, projects, sites }) => {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
@@ -34,14 +49,32 @@ const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, c
       return acc;
     }
     
-    if (expense.attachment) {
-        acc.push({ expense, attachment: expense.attachment, type: 'Category' });
+    if (expense.attachment_path) {
+        const url = getAttachmentUrl(expense.attachment_path);
+        if (url) {
+            acc.push({ 
+                expense, 
+                path: expense.attachment_path, 
+                url,
+                name: expense.attachment_path.split('/').pop() || 'attachment',
+                type: 'Category' 
+            });
+        }
     }
-    if (expense.subcategoryAttachment) {
-        acc.push({ expense, attachment: expense.subcategoryAttachment, type: 'Subcategory' });
+    if (expense.subcategory_attachment_path) {
+        const url = getAttachmentUrl(expense.subcategory_attachment_path);
+        if (url) {
+            acc.push({ 
+                expense, 
+                path: expense.subcategory_attachment_path, 
+                url,
+                name: expense.subcategory_attachment_path.split('/').pop() || 'attachment',
+                type: 'Subcategory' 
+            });
+        }
     }
     return acc;
-  }, [] as { expense: Expense; attachment: ExpenseAttachment; type: string }[]);
+  }, [] as AttachmentInfo[]);
 
 
   const StatusBadge = ({ status }: { status: Status }) => {
@@ -104,21 +137,23 @@ const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, c
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {allAttachments.map(({ expense, attachment, type }, index) => (
+                    {allAttachments.map(({ expense, url, name, type }, index) => (
                       <tr key={`${expense.id}-${type}-${index}`}>
                         <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-0">{formatDate(expense.submittedAt)}</td>
                         <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.requestorName}</td>
                         <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getProjectName(expense.projectId)}</td>
                         <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getCategoryName(expense.categoryId)}</td>
                         <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{attachment.name}</td>
+                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{name}</td>
                         <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{type}</td>
                         <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
                           <a 
-                            href={`data:${attachment.type};base64,${attachment.data}`} 
-                            download={attachment.name} 
+                            href={url}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center p-1 text-primary hover:text-primary-hover"
-                            aria-label={`Download ${attachment.name}`}
+                            aria-label={`Download ${name}`}
                           >
                             <DocumentArrowDownIcon className="w-5 h-5"/>
                           </a>
