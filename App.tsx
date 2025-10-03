@@ -271,20 +271,24 @@ const App: React.FC = () => {
     }
 
     try {
-      const { error: insertError } = await supabase.from('expenses').insert({
-          ...newExpense,
-          // map App type to DB schema
-          reference_number: newExpense.referenceNumber,
-          requestor_id: newExpense.requestorId,
-          category_id: newExpense.categoryId,
-          subcategory_id: newExpense.subcategoryId,
-          project_id: newExpense.projectId,
-          site_id: newExpense.siteId,
-          submitted_at: newExpense.submittedAt,
-          is_high_priority: newExpense.isHighPriority,
-          attachment_path: newExpense.attachment_path,
-          subcategory_attachment_path: newExpense.subcategory_attachment_path,
-      });
+      const expenseForDb = {
+        reference_number: newExpense.referenceNumber,
+        requestor_id: newExpense.requestorId,
+        category_id: newExpense.categoryId,
+        subcategory_id: newExpense.subcategoryId,
+        amount: newExpense.amount,
+        description: newExpense.description,
+        project_id: newExpense.projectId,
+        site_id: newExpense.siteId,
+        submitted_at: newExpense.submittedAt,
+        status: newExpense.status,
+        is_high_priority: newExpense.isHighPriority,
+        attachment_path: newExpense.attachment_path,
+        subcategory_attachment_path: newExpense.subcategory_attachment_path,
+        history: newExpense.history,
+      };
+
+      const { error: insertError } = await supabase.from('expenses').insert(expenseForDb);
       if (insertError) throw insertError;
     } catch(error: any) {
        alert(`Failed to create expense request: ${error.message}`);
