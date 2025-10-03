@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 
 const sqlSchema = `-- 1. Enable pg_jsonschema extension
 create extension if not exists pg_jsonschema with schema extensions;
@@ -124,8 +123,16 @@ create policy "Allow support roles to view all attachments" on storage.objects f
 -- The manual SQL command is no longer needed.
 `;
 
+interface ConfigurationProps {
+  onSave: (url: string, key: string) => void;
+}
 
-const SupabaseInstructions: React.FC = () => {
+const Configuration: React.FC<ConfigurationProps> = ({ onSave }) => {
+  const [url, setUrl] = useState('');
+  const [anonKey, setAnonKey] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(sqlSchema).then(() => {
       alert('SQL schema copied to clipboard!');
@@ -135,37 +142,80 @@ const SupabaseInstructions: React.FC = () => {
     });
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!url || !anonKey) {
+        setError('Both URL and Anon Key are required.');
+        return;
+    }
+    setLoading(true);
+    // The onSave function will handle initialization and feedback
+    onSave(url, anonKey);
+    // Don't setLoading(false) here, as the app will transition away on success
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-3xl p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Backend Setup Required
+            Backend Setup
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            This application requires a Supabase backend. Please follow the steps below.
+            This app requires a Supabase backend. Please complete the one-time setup below.
           </p>
         </div>
         
         <div className="p-4 space-y-4 text-left border rounded-lg">
-          <h3 className="text-lg font-semibold">1. Set Up Your Supabase Project</h3>
-          <p>Go to <a href="https://supabase.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Supabase</a>, create a new project, and find your project's API URL and anon key in the API settings.</p>
-          
-          <h3 className="text-lg font-semibold">2. Configure Environment Variables</h3>
-          <p>You need to set the environment variables for this application to connect to your project. In your Vercel project settings, add the following variables:</p>
-          <ul className="pl-5 space-y-1 list-disc">
-            <li>Name: <code className="px-1 py-0.5 text-sm bg-gray-100 rounded">VITE_SUPABASE_URL</code> | Value: Your project URL from Supabase.</li>
-            <li>Name: <code className="px-1 py-0.5 text-sm bg-gray-100 rounded">VITE_SUPABASE_ANON_KEY</code> | Value: Your anon key from Supabase.</li>
-          </ul>
+          <h3 className="text-lg font-semibold">1. Enter Your Supabase Credentials</h3>
           <p className="text-sm text-gray-600">
-            <strong>Important:</strong> The `VITE_` prefix is required for the app to access these keys.
+              Go to your project on <a href="https://supabase.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Supabase</a>, navigate to <span className="font-semibold">Settings &gt; API</span>, and copy your Project URL and anon public key below.
           </p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="supabase-url" className="block text-sm font-medium text-gray-700">Supabase URL</label>
+              <input
+                id="supabase-url"
+                type="text"
+                required
+                className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                placeholder="https://your-project.supabase.co"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="supabase-key" className="block text-sm font-medium text-gray-700">Supabase Anon Key (public)</label>
+              <input
+                id="supabase-key"
+                type="text"
+                required
+                className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                placeholder="eyJhbGciOiJI..."
+                value={anonKey}
+                onChange={(e) => setAnonKey(e.target.value)}
+              />
+            </div>
+             {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+                <button
+                type="submit"
+                disabled={loading}
+                className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md group bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                >
+                {loading ? 'Saving...' : 'Save and Continue'}
+                </button>
+            </div>
+          </form>
 
-          <h3 className="text-lg font-semibold">3. Create Database Schema</h3>
-          <p>Go to the "SQL Editor" in your Supabase project dashboard, click "New query", and paste the entire SQL script below. Click "RUN" to create all the necessary tables and policies.</p>
+          <hr className="my-4"/>
+
+          <h3 className="text-lg font-semibold">2. Create Database Schema</h3>
+          <p className="text-sm text-gray-600">If you haven't already, go to the "SQL Editor" in your Supabase project, click "New query", paste the entire SQL script below, and click "RUN".</p>
           
           <div className="relative">
-            <pre className="p-4 text-sm bg-gray-100 border rounded-md max-h-64 overflow-auto">
+            <pre className="p-4 text-sm bg-gray-100 border rounded-md max-h-48 overflow-auto">
               <code>{sqlSchema}</code>
             </pre>
             <button
@@ -176,10 +226,8 @@ const SupabaseInstructions: React.FC = () => {
             </button>
           </div>
 
-          <h3 className="text-lg font-semibold">4. Create Your Admin Account</h3>
-          <p>After completing the steps above, Vercel will create a new deployment. Once it's live, open your app's URL. It will automatically detect that no admin exists and will present you with a form to create the first administrator account.</p>
-         
-           <p className="pt-4 font-bold text-center">Once these steps are completed, your application will be live.</p>
+          <h3 className="text-lg font-semibold">3. Next Step</h3>
+          <p className="text-sm text-gray-600">After saving your credentials, the application will guide you to create the first administrator account.</p>
 
         </div>
       </div>
@@ -187,4 +235,4 @@ const SupabaseInstructions: React.FC = () => {
   );
 };
 
-export default SupabaseInstructions;
+export default Configuration;

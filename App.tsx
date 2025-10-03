@@ -1,9 +1,10 @@
+// FIX: Corrected the import statement for React and its hooks. The extraneous 'a,' was removed.
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site, AvailableBackups } from './types';
+import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site } from './types';
 import * as Notifications from './notifications';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, initializeSupabase } from './supabaseClient';
 import SupabaseInstructions from './components/SupabaseInstructions';
 import AdminSetup from './components/AdminSetup';
 import { Session } from '@supabase/supabase-js';
@@ -26,6 +27,7 @@ const mapDbUserToAppUser = (dbProfile: any): User => ({
 });
 
 const App: React.FC = () => {
+  const [isConfigured, setIsConfigured] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -37,9 +39,16 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [needsAdminSetup, setNeedsAdminSetup] = useState(false);
 
+  const handleSaveConfiguration = (url: string, key: string) => {
+    if (initializeSupabase(url, key)) {
+      setIsConfigured(true);
+    } else {
+      alert("Configuration failed. Please check the provided Supabase URL and Key and try again.");
+    }
+  };
 
   const fetchData = useCallback(async () => {
-    if (!session) return;
+    if (!session || !isConfigured) return;
     setLoading(true);
 
     try {
@@ -102,11 +111,21 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, isConfigured]);
 
  useEffect(() => {
-    if (!isSupabaseConfigured) {
+    const url = localStorage.getItem('VITE_SUPABASE_URL');
+    const key = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
+
+    if (url && key && initializeSupabase(url, key)) {
+      setIsConfigured(true);
+    } else {
       setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isConfigured) {
       return;
     }
 
@@ -119,6 +138,13 @@ const App: React.FC = () => {
 
       if (error) {
         console.error("Error checking for admin user:", error.message);
+         // If there's an RLS error or connection issue, the config might be wrong.
+        if (error.message.includes('permission denied') || error.message.includes('fetch')) {
+             alert("Connection to Supabase failed. Please re-check your configuration.");
+             localStorage.removeItem('VITE_SUPABASE_URL');
+             localStorage.removeItem('VITE_SUPABASE_ANON_KEY');
+             setIsConfigured(false);
+        }
       }
 
       if (count === 0) {
@@ -141,10 +167,10 @@ const App: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isConfigured]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    if (!isConfigured) {
         return;
     }
     const fetchUserProfile = async () => {
@@ -168,7 +194,7 @@ const App: React.FC = () => {
     if(session) {
         fetchData();
     }
-  }, [session, fetchData]);
+  }, [session, fetchData, isConfigured]);
 
   const addAuditLogEntry = async (action: string, details: string) => {
     if (!currentUser) return;
@@ -351,7 +377,8 @@ const App: React.FC = () => {
      alert("User deletion is an administrative action that should be handled in the Supabase dashboard for security reasons (e.g., to properly handle related data).");
   };
   
-  const onCrudOperation = async (operation: Promise<any>, successMessage: string, errorMessage: string) => {
+  // FIX: Changed 'operation' type from 'Promise<any>' to 'any' to correctly handle Supabase's 'thenable' but not fully Promise-compliant query builder objects.
+  const onCrudOperation = async (operation: any, successMessage: string, errorMessage: string) => {
     const { error } = await operation;
     if (error) {
       console.error(errorMessage, error);
@@ -391,8 +418,8 @@ const App: React.FC = () => {
     }
   };
 
-  if (!isSupabaseConfigured) {
-    return <SupabaseInstructions />;
+  if (!isConfigured) {
+    return <SupabaseInstructions onSave={handleSaveConfiguration} />;
   }
 
   if (loading) {
