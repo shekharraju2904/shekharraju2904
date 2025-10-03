@@ -12,6 +12,12 @@ export enum Status {
   REJECTED = 'Rejected',
 }
 
+export enum RoleRequestStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  DENIED = 'denied',
+}
+
 export interface User {
   id: string;
   username: string;
@@ -80,6 +86,16 @@ export interface AuditLogItem {
   actorName: string;
   action: string;
   details: string;
+}
+
+export interface RoleRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  requestedRole: Role;
+  status: RoleRequestStatus;
+  createdAt: string;
 }
 
 // This type is no longer needed with Supabase, but keeping it for reference if needed elsewhere.

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site } from './types';
+import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site, RoleRequest, RoleRequestStatus } from './types';
 import * as Notifications from './notifications';
 import { supabase, initializeSupabase } from './supabaseClient';
 import SupabaseInstructions from './components/SupabaseInstructions';
@@ -37,6 +37,7 @@ const App: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogItem[]>([]);
+  const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [needsAdminSetup, setNeedsAdminSetup] = useState(false);
 
@@ -53,22 +54,39 @@ const App: React.FC = () => {
     setLoading(true);
 
     try {
+      // Base requests for all users
+      const baseRequests = [
+        supabase.from('profiles').select('*'),
+        supabase.from('categories').select('*, subcategories(*)'),
+        supabase.from('projects').select('*'),
+        supabase.from('sites').select('*'),
+        supabase.from('expenses').select('*, profiles!requestor_id(name)').order('submitted_at', { ascending: false }),
+      ];
+
+      // Admin-specific requests
+      const adminRequests = (currentUser?.role === Role.ADMIN) ? [
+        supabase.from('audit_log').select('*').order('timestamp', { ascending: false }),
+        supabase.from('role_requests').select('*, profiles!user_id(name, email)')
+      ] : [];
+
+      const allRequests = [...baseRequests, ...adminRequests];
+      
+      const responses = await Promise.all(allRequests);
+
+      // Destructure responses based on the requests made
       const [
         usersRes,
         categoriesRes,
         projectsRes,
         sitesRes,
         expensesRes,
-        auditLogRes,
-      ] = await Promise.all([
-        supabase.from('profiles').select('*'),
-        supabase.from('categories').select('*, subcategories(*)'),
-        supabase.from('projects').select('*'),
-        supabase.from('sites').select('*'),
-        supabase.from('expenses').select('*, profiles!requestor_id(name)').order('submitted_at', { ascending: false }),
-        supabase.from('audit_log').select('*').order('timestamp', { ascending: false }),
-      ]);
-      
+        ...adminResponses
+      ] = responses;
+
+      const auditLogRes = (currentUser?.role === Role.ADMIN) ? adminResponses[0] : null;
+      const roleRequestsRes = (currentUser?.role === Role.ADMIN) ? adminResponses[1] : null;
+
+      // Now process all responses...
       if (usersRes.error) throw usersRes.error;
       setUsers(usersRes.data.map(mapDbUserToAppUser));
 
@@ -113,20 +131,40 @@ const App: React.FC = () => {
       }));
       setExpenses(fetchedExpenses);
 
-      if (auditLogRes.error) throw auditLogRes.error;
-      setAuditLog(auditLogRes.data.map((log: any) => ({
-        ...log,
-        actorId: log.actor_id,
-        actorName: log.actor_name
-      })));
+      // Process admin data if it exists
+      if (auditLogRes) {
+        if (auditLogRes.error) throw auditLogRes.error;
+        setAuditLog(auditLogRes.data.map((log: any) => ({
+          ...log,
+          actorId: log.actor_id,
+          actorName: log.actor_name
+        })));
+      } else {
+        setAuditLog([]); // Clear log for non-admins
+      }
 
-    } catch (error) {
+      if (roleRequestsRes) {
+        if (roleRequestsRes.error) throw roleRequestsRes.error;
+        setRoleRequests(roleRequestsRes.data.map((req: any) => ({
+          id: req.id,
+          userId: req.user_id,
+          userName: req.profiles.name,
+          userEmail: req.profiles.email,
+          requestedRole: req.requested_role,
+          status: req.status,
+          createdAt: req.created_at,
+        })));
+      } else {
+        setRoleRequests([]); // Clear requests for non-admins
+      }
+
+    } catch (error: any) {
       console.error("Error fetching data:", error);
-      alert("Could not fetch data from the server.");
+      alert(`Could not fetch data from the server: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [session, isConfigured]);
+  }, [session, isConfigured, currentUser?.role]);
 
  useEffect(() => {
     const url = localStorage.getItem('VITE_SUPABASE_URL');
@@ -462,6 +500,29 @@ const App: React.FC = () => {
       await fetchData();
     }
   };
+
+  const handleUpdateRequestRoleStatus = async (requestId: string, user: User, newRole: Role, newStatus: RoleRequestStatus) => {
+    if (newStatus === RoleRequestStatus.APPROVED) {
+        const { error: profileError } = await supabase.from('profiles').update({ role: newRole }).eq('id', user.id);
+        if (profileError) {
+            alert(`Failed to approve role request: ${profileError.message}`);
+            return;
+        }
+    }
+    
+    const { error: requestError } = await supabase.from('role_requests').update({ status: newStatus }).eq('id', requestId);
+     if (requestError) {
+        alert(`Failed to update role request status: ${requestError.message}`);
+        // Consider rolling back the profile change if this fails
+        if (newStatus === RoleRequestStatus.APPROVED) {
+           await supabase.from('profiles').update({ role: user.role }).eq('id', user.id);
+        }
+    } else {
+        const action = newStatus === RoleRequestStatus.APPROVED ? 'Approved' : 'Denied';
+        addAuditLogEntry('Role Request Processed', `${action} role request for ${user.name} to become ${newRole}.`);
+        await fetchData();
+    }
+  };
   
   const handleToggleUserStatus = async (userToUpdate: User) => {
     const newStatus = userToUpdate.status === 'active' ? 'disabled' : 'active';
@@ -620,6 +681,7 @@ const App: React.FC = () => {
       sites={sites}
       expenses={expenses}
       auditLog={auditLog}
+      roleRequests={roleRequests}
       onLogout={() => supabase.auth.signOut()}
       onAddExpense={handleAddExpense}
       onUpdateExpenseStatus={handleUpdateExpenseStatus}
@@ -645,6 +707,7 @@ const App: React.FC = () => {
       onUpdateProfile={handleUpdateUserProfile}
       onUpdatePassword={handleUpdateUserPassword}
       onTriggerBackup={handleTriggerBackup}
+      onUpdateRequestRoleStatus={handleUpdateRequestRoleStatus}
     />
   );
 };

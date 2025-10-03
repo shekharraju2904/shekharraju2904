@@ -7,6 +7,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [requestedRole, setRequestedRole] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,7 +35,7 @@ const Login: React.FC = () => {
     setMessage('');
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -47,8 +48,22 @@ const Login: React.FC = () => {
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
+    } else if (requestedRole && signUpData.user) {
+        // If a role was requested, create a role request entry
+        const { error: requestError } = await supabase.from('role_requests').insert({
+            user_id: signUpData.user.id,
+            requested_role: requestedRole
+        });
+        if (requestError) {
+             // This is not a critical error, so we just log it and inform the user.
+             // The main account is already created.
+            console.error('Failed to create role request:', requestError);
+            setMessage('Registration successful! A verification link has been sent to your email. (Note: Your role request could not be submitted.)');
+        } else {
+            setMessage('Registration successful! A verification link has been sent to your email. Your role request has been submitted for admin approval.');
+        }
     } else {
       setMessage('Registration successful! A verification link has been sent to your email. Please check your inbox (and spam folder) to complete the process.');
     }
@@ -74,20 +89,22 @@ const Login: React.FC = () => {
         ) : (
           <form className="space-y-4" onSubmit={isLoginView ? handleLogin : handleSignup}>
             {!isLoginView && (
-              <div>
-                <label htmlFor="name" className="sr-only">Full Name</label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                  placeholder="Full Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
+              <>
+                <div>
+                  <label htmlFor="name" className="sr-only">Full Name</label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    autoComplete="name"
+                    required
+                    className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                    placeholder="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              </>
             )}
             <div>
               <label htmlFor="email-address" className="sr-only">Email address</label>
@@ -117,6 +134,22 @@ const Login: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            {!isLoginView && (
+               <div>
+                <label htmlFor="requested-role" className="sr-only">Request Role</label>
+                 <select
+                  id="requested-role"
+                  name="requestedRole"
+                  value={requestedRole}
+                  onChange={(e) => setRequestedRole(e.target.value)}
+                  className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                >
+                  <option value="">Default Role (Requestor)</option>
+                  <option value={Role.VERIFIER}>Request Verifier Role</option>
+                  <option value={Role.APPROVER}>Request Approver Role</option>
+                </select>
+              </div>
+            )}
             
             {error && <p className="text-sm text-red-600">{error}</p>}
 

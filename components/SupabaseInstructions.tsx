@@ -75,6 +75,18 @@ create table subcategories (
 alter table subcategories enable row level security;
 create policy "Allow all access to subcategories" on subcategories for all using (true) with check (true);
 
+-- NEW: Table for role requests
+create table role_requests (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references profiles(id) on delete cascade not null,
+  requested_role text not null,
+  status text default 'pending'::text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+alter table role_requests enable row level security;
+create policy "Users can create their own role requests" on role_requests for insert with check (auth.uid() = user_id);
+create policy "Admins can view and manage all role requests" on role_requests for all using (((select role from profiles where id = auth.uid()) = 'admin'::text));
+
 create table expenses (
   id uuid default gen_random_uuid() primary key,
   reference_number text not null,
