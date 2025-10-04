@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { Role } from '../types';
 
-const AdminSetup: React.FC = () => {
+interface AdminSetupProps {
+  onAdminCreated: () => void;
+}
+
+const AdminSetup: React.FC<AdminSetupProps> = ({ onAdminCreated }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -19,20 +22,15 @@ const AdminSetup: React.FC = () => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          name: name,
-          username: email.split('@')[0],
-          role: Role.ADMIN, // Set role to ADMIN for the first user
-          email: email,
-        },
-      },
     });
 
     if (error) {
       setError(error.message);
     } else {
-      setMessage('Admin account created! A verification link has been sent to your email. Please check your inbox (and spam folder) to activate your account.');
+      setMessage('Admin account created! Redirecting to the dashboard...');
+      // Signal to the parent component that the admin is created.
+      // The auth listener will handle the session update and subsequent redirect.
+      onAdminCreated();
     }
     setLoading(false);
   };
@@ -53,7 +51,7 @@ const AdminSetup: React.FC = () => {
           <div className="p-4 text-center bg-green-50 border border-green-200 rounded-md">
             <p className="text-sm font-medium text-green-800">{message}</p>
             <p className="mt-2 text-xs text-gray-600">
-                The application will now show the login screen. You may need to refresh the page after verifying your email.
+                Please wait...
             </p>
           </div>
         ) : (

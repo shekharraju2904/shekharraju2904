@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense, RoleRequest, RoleRequestStatus } from '../types';
-import { PencilIcon, TrashIcon, PlusIcon, KeyIcon, BanIcon, CheckCircleIcon, XCircleIcon } from './Icons';
+import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense } from '../types';
+import { PencilIcon, TrashIcon, PlusIcon, KeyIcon, BanIcon, CheckCircleIcon } from './Icons';
 import Modal from './Modal';
 
 interface AdminPanelProps {
@@ -10,7 +10,6 @@ interface AdminPanelProps {
   sites: Site[];
   expenses: Expense[];
   auditLog: AuditLogItem[];
-  roleRequests: RoleRequest[];
   onAddUser: (user: Omit<User, 'id'>) => void;
   onUpdateUser: (user: User) => void;
   onToggleUserStatus: (user: User) => void;
@@ -30,17 +29,16 @@ interface AdminPanelProps {
   activeAdminTab: string;
   setActiveAdminTab: (tabId: string) => void;
   onTriggerBackup: () => void;
-  onUpdateRequestRoleStatus: (requestId: string, user: User, newRole: Role, newStatus: RoleRequestStatus) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
-  users, categories, projects, sites, auditLog, roleRequests,
+  users, categories, projects, sites, auditLog,
   onAddUser, onUpdateUser, onToggleUserStatus, onResetUserPassword,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
   onAddSite, onUpdateSite, onDeleteSite,
-  activeAdminTab, setActiveAdminTab, onTriggerBackup, onUpdateRequestRoleStatus
+  activeAdminTab, setActiveAdminTab, onTriggerBackup
 }) => {
   const [isUserModalOpen, setUserModalOpen] = useState(false);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -173,38 +171,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
-  const handleRoleRequest = (request: RoleRequest, newStatus: RoleRequestStatus.APPROVED | RoleRequestStatus.DENIED) => {
-      const user = users.find(u => u.id === request.userId);
-      if (!user) {
-        alert("Could not find the user associated with this request.");
-        return;
-      }
-      const action = newStatus === RoleRequestStatus.APPROVED ? 'approve' : 'deny';
-      if (window.confirm(`Are you sure you want to ${action} this request?`)) {
-          onUpdateRequestRoleStatus(request.id, user, request.requestedRole, newStatus);
-      }
-  }
-
-  const TabButton = ({ tabId, label, badgeCount }: { tabId: string, label: string, badgeCount?: number }) => (
+  const TabButton = ({ tabId, label }: { tabId: string, label: string }) => (
      <button
         onClick={() => setActiveAdminTab(tabId)}
         className={`${activeAdminTab === tabId ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} relative whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
       >
         {label}
-        {badgeCount && badgeCount > 0 ? (
-          <span className="absolute top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">{badgeCount}</span>
-        ) : null}
       </button>
   );
-
-  const pendingRoleRequests = roleRequests.filter(r => r.status === RoleRequestStatus.PENDING);
 
   return (
     <div>
       <h2 className="text-2xl font-bold tracking-tight text-gray-900">Admin Panel</h2>
       <div className="mt-4 border-b border-gray-200">
         <nav className="flex -mb-px space-x-8" aria-label="Tabs">
-          <TabButton tabId="role_requests" label="Role Requests" badgeCount={pendingRoleRequests.length} />
           <TabButton tabId="users" label="User Management" />
           <TabButton tabId="categories" label="Category Management" />
           <TabButton tabId="subcategories" label="Subcategory Management" />
@@ -216,56 +196,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       <div className="mt-8">
-        {activeAdminTab === 'role_requests' && (
-           <div>
-            <div className="sm:flex sm:items-center">
-              <div className="sm:flex-auto">
-                <h3 className="text-base font-semibold leading-6 text-gray-900">Role Requests</h3>
-                <p className="mt-2 text-sm text-gray-700">Approve or deny requests from users for elevated roles.</p>
-              </div>
-            </div>
-            <div className="flow-root mt-8">
-                <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                    <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                            <table className="min-w-full bg-white divide-y divide-gray-300">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">User Name</th>
-                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
-                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Requested Role</th>
-                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date Requested</th>
-                                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {pendingRoleRequests.map((req) => (
-                                        <tr key={req.id}>
-                                            <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-6">{req.userName}</td>
-                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{req.userEmail}</td>
-                                            <td className="px-3 py-4 text-sm font-semibold text-gray-700 whitespace-nowrap capitalize">{req.requestedRole}</td>
-                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{formatDateTime(req.createdAt)}</td>
-                                            <td className="relative flex items-center justify-end py-4 pl-3 pr-4 space-x-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
-                                                <button onClick={() => handleRoleRequest(req, RoleRequestStatus.DENIED)} className="inline-flex items-center text-sm font-semibold text-red-600 rounded-md hover:text-red-800">
-                                                    <XCircleIcon className="w-4 h-4 mr-1" /> Deny
-                                                </button>
-                                                <button onClick={() => handleRoleRequest(req, RoleRequestStatus.APPROVED)} className="inline-flex items-center text-sm font-semibold text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700 px-2.5 py-1.5">
-                                                    <CheckCircleIcon className="w-4 h-4 mr-1" /> Approve
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {pendingRoleRequests.length === 0 && (
-                                       <tr><td colSpan={5} className="py-8 text-sm text-center text-gray-500">No pending role requests.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          </div>
-        )}
         {activeAdminTab === 'users' && (
           <div>
             <div className="sm:flex sm:items-center">

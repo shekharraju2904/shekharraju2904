@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site, RoleRequest, RoleRequestStatus } from './types';
+import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site } from './types';
 import * as Notifications from './notifications';
 import { supabase, initializeSupabase } from './supabaseClient';
 import SupabaseInstructions from './components/SupabaseInstructions';
@@ -37,7 +37,6 @@ const App: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogItem[]>([]);
-  const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [needsAdminSetup, setNeedsAdminSetup] = useState(false);
 
@@ -50,30 +49,37 @@ const App: React.FC = () => {
   };
 
   const fetchData = useCallback(async () => {
-    if (!session || !isConfigured) return;
+    if (!session || !isConfigured || !currentUser) return;
     setLoading(true);
 
     try {
-      // Base requests for all users
+      let expensesQuery = supabase
+        .from('expenses')
+        .select('*, profiles!requestor_id(name)')
+        .order('submitted_at', { ascending: false });
+      
+      // FIX: This explicit client-side filter aligns with Row Level Security policies,
+      // preventing errors for Requestor roles trying to fetch all expenses.
+      if (currentUser.role === Role.REQUESTOR) {
+        expensesQuery = expensesQuery.eq('requestor_id', currentUser.id);
+      }
+
       const baseRequests = [
         supabase.from('profiles').select('*'),
         supabase.from('categories').select('*, subcategories(*)'),
         supabase.from('projects').select('*'),
         supabase.from('sites').select('*'),
-        supabase.from('expenses').select('*, profiles!requestor_id(name)').order('submitted_at', { ascending: false }),
+        expensesQuery,
       ];
 
-      // Admin-specific requests
-      const adminRequests = (currentUser?.role === Role.ADMIN) ? [
+      const adminRequests = (currentUser.role === Role.ADMIN) ? [
         supabase.from('audit_log').select('*').order('timestamp', { ascending: false }),
-        supabase.from('role_requests').select('*, profiles!user_id(name, email)')
       ] : [];
 
       const allRequests = [...baseRequests, ...adminRequests];
       
       const responses = await Promise.all(allRequests);
 
-      // Destructure responses based on the requests made
       const [
         usersRes,
         categoriesRes,
@@ -83,10 +89,8 @@ const App: React.FC = () => {
         ...adminResponses
       ] = responses;
 
-      const auditLogRes = (currentUser?.role === Role.ADMIN) ? adminResponses[0] : null;
-      const roleRequestsRes = (currentUser?.role === Role.ADMIN) ? adminResponses[1] : null;
-
-      // Now process all responses...
+      const auditLogRes = (currentUser.role === Role.ADMIN) ? adminResponses[0] : null;
+      
       if (usersRes.error) throw usersRes.error;
       setUsers(usersRes.data.map(mapDbUserToAppUser));
 
@@ -131,7 +135,6 @@ const App: React.FC = () => {
       }));
       setExpenses(fetchedExpenses);
 
-      // Process admin data if it exists
       if (auditLogRes) {
         if (auditLogRes.error) throw auditLogRes.error;
         setAuditLog(auditLogRes.data.map((log: any) => ({
@@ -140,22 +143,7 @@ const App: React.FC = () => {
           actorName: log.actor_name
         })));
       } else {
-        setAuditLog([]); // Clear log for non-admins
-      }
-
-      if (roleRequestsRes) {
-        if (roleRequestsRes.error) throw roleRequestsRes.error;
-        setRoleRequests(roleRequestsRes.data.map((req: any) => ({
-          id: req.id,
-          userId: req.user_id,
-          userName: req.profiles.name,
-          userEmail: req.profiles.email,
-          requestedRole: req.requested_role,
-          status: req.status,
-          createdAt: req.created_at,
-        })));
-      } else {
-        setRoleRequests([]); // Clear requests for non-admins
+        setAuditLog([]);
       }
 
     } catch (error: any) {
@@ -164,7 +152,7 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, isConfigured, currentUser?.role]);
+  }, [session, isConfigured, currentUser]);
 
  useEffect(() => {
     const url = localStorage.getItem('VITE_SUPABASE_URL');
@@ -191,7 +179,6 @@ const App: React.FC = () => {
 
       if (error) {
         console.error("Error checking for admin user:", error.message);
-         // If there's an RLS error or connection issue, the config might be wrong.
         if (error.message.includes('permission denied') || error.message.includes('fetch')) {
              alert("Connection to Supabase failed. Please re-check your configuration.");
              localStorage.removeItem('VITE_SUPABASE_URL');
@@ -214,14 +201,13 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (needsAdminSetup && session) {
-        setNeedsAdminSetup(false);
-      }
     });
 
     return () => subscription.unsubscribe();
   }, [isConfigured]);
 
+  // FIX: This useEffect now ONLY fetches the user profile when the session changes.
+  // This resolves the race condition by separating profile fetching from data fetching.
   useEffect(() => {
     if (!isConfigured) {
         return;
@@ -236,6 +222,7 @@ const App: React.FC = () => {
         
         if (error) {
           console.error('Error fetching user profile:', error);
+          setCurrentUser(null);
         } else if (data) {
           const user = mapDbUserToAppUser(data);
           if (user.status === 'disabled') {
@@ -251,10 +238,15 @@ const App: React.FC = () => {
       }
     };
     fetchUserProfile();
-    if(session) {
+  }, [session, isConfigured]);
+
+  // FIX: This new useEffect ensures that data fetching only occurs AFTER a valid user profile has been loaded.
+  useEffect(() => {
+    if (currentUser && isConfigured) {
         fetchData();
     }
-  }, [session, fetchData, isConfigured]);
+  }, [currentUser, isConfigured, fetchData]);
+
 
   const addAuditLogEntry = async (action: string, details: string) => {
     if (!currentUser) return;
@@ -353,7 +345,6 @@ const App: React.FC = () => {
     } catch(error: any) {
        alert(`Failed to create expense request: ${error.message}`);
        console.error(error);
-       // If insert fails, attempt to delete orphaned attachments
        if (attachment_path) await supabase.storage.from('attachments').remove([attachment_path]);
        if (subcategory_attachment_path) await supabase.storage.from('attachments').remove([subcategory_attachment_path]);
        return;
@@ -413,16 +404,13 @@ const App: React.FC = () => {
     const siteName = sites.find(s => s.id === expenseToUpdate.siteId)?.name || 'N/A';
 
     if (requestor && category) {
-        // Always notify the original requestor of any status change.
         Notifications.notifyOnStatusChange(requestor, updatedExpense, category.name, subcategory?.name, projectName, siteName, comment);
         
-        // If a VERIFIER just acted, notify the APPROVERS.
         if (currentUser.role === Role.VERIFIER && newStatus === Status.PENDING_APPROVAL) {
             const approvers = users.filter(u => u.role === Role.APPROVER);
             Notifications.notifyApproversOnVerification(approvers, updatedExpense, category.name, subcategory?.name, projectName, siteName);
         }
 
-        // If an APPROVER just acted, notify the VERIFIER who took the previous step.
         if (currentUser.role === Role.APPROVER && (newStatus === Status.APPROVED || newStatus === Status.REJECTED)) {
             const verifierAction = updatedHistory.find(h => h.action === 'Verified');
             if (verifierAction) {
@@ -454,8 +442,7 @@ const App: React.FC = () => {
         alert("Failed to add comment.");
         console.error(error);
     } else {
-        await fetchData(); // Refetch to show the new comment
-        // Notify relevant users
+        await fetchData(); 
         const participants = new Map<string, User>();
         participants.set(expenseToUpdate.requestorId, users.find(u => u.id === expenseToUpdate.requestorId)!);
         expenseToUpdate.history.forEach(h => {
@@ -483,8 +470,6 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUser = async (updatedUser: User) => {
-    // The user's email is tied to auth.users and cannot be changed from this form.
-    // We only update the profile data here.
     const { error } = await supabase.from('profiles').update({ 
       name: updatedUser.name,
       username: updatedUser.username,
@@ -493,34 +478,17 @@ const App: React.FC = () => {
 
     if(error) {
       console.error("Failed to update user:", error);
-      alert(`Failed to update user: ${error.message}`);
+      let errorMessage = `Failed to update user: ${error.message}`;
+      if (error.message.includes('duplicate key value violates unique constraint')) {
+        errorMessage = 'Failed to update: The username you chose is already taken.';
+      } else if (error.message.includes('permission denied')) {
+        errorMessage = 'Failed to update: You do not have permission to perform this action.';
+      }
+      alert(errorMessage);
     }
     else {
       addAuditLogEntry('User Updated', `Updated profile for user '${updatedUser.username}'.`);
       await fetchData();
-    }
-  };
-
-  const handleUpdateRequestRoleStatus = async (requestId: string, user: User, newRole: Role, newStatus: RoleRequestStatus) => {
-    if (newStatus === RoleRequestStatus.APPROVED) {
-        const { error: profileError } = await supabase.from('profiles').update({ role: newRole }).eq('id', user.id);
-        if (profileError) {
-            alert(`Failed to approve role request: ${profileError.message}`);
-            return;
-        }
-    }
-    
-    const { error: requestError } = await supabase.from('role_requests').update({ status: newStatus }).eq('id', requestId);
-     if (requestError) {
-        alert(`Failed to update role request status: ${requestError.message}`);
-        // Consider rolling back the profile change if this fails
-        if (newStatus === RoleRequestStatus.APPROVED) {
-           await supabase.from('profiles').update({ role: user.role }).eq('id', user.id);
-        }
-    } else {
-        const action = newStatus === RoleRequestStatus.APPROVED ? 'Approved' : 'Denied';
-        addAuditLogEntry('Role Request Processed', `${action} role request for ${user.name} to become ${newRole}.`);
-        await fetchData();
     }
   };
   
@@ -534,7 +502,11 @@ const App: React.FC = () => {
     const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userToUpdate.id);
     
     if (error) {
-        alert(`Failed to update user status: ${error.message}`);
+        let errorMessage = `Failed to update user status: ${error.message}`;
+        if (error.message.includes('permission denied')) {
+            errorMessage = 'Failed to update status: You do not have permission to perform this action.';
+        }
+        alert(errorMessage);
     } else {
         addAuditLogEntry('User Status Changed', `Set user '${userToUpdate.name}' status to ${newStatus}.`);
         await fetchData();
@@ -555,7 +527,6 @@ const App: React.FC = () => {
     }
   };
   
-  // FIX: Changed 'operation' type from 'Promise<any>' to 'any' to correctly handle Supabase's 'thenable' but not fully Promise-compliant query builder objects.
   const onCrudOperation = async (operation: any, successMessage: string, errorMessage: string) => {
     const { error } = await operation;
     if (error) {
@@ -665,7 +636,7 @@ const App: React.FC = () => {
   }
 
   if (needsAdminSetup) {
-    return <AdminSetup />;
+    return <AdminSetup onAdminCreated={() => setNeedsAdminSetup(false)} />;
   }
 
   if (!session || !currentUser) {
@@ -681,7 +652,6 @@ const App: React.FC = () => {
       sites={sites}
       expenses={expenses}
       auditLog={auditLog}
-      roleRequests={roleRequests}
       onLogout={() => supabase.auth.signOut()}
       onAddExpense={handleAddExpense}
       onUpdateExpenseStatus={handleUpdateExpenseStatus}
@@ -707,7 +677,6 @@ const App: React.FC = () => {
       onUpdateProfile={handleUpdateUserProfile}
       onUpdatePassword={handleUpdateUserPassword}
       onTriggerBackup={handleTriggerBackup}
-      onUpdateRequestRoleStatus={handleUpdateRequestRoleStatus}
     />
   );
 };

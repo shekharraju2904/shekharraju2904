@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site, RoleRequest, RoleRequestStatus } from '../types';
+import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site } from '../types';
 import Header from './Header';
 import AdminPanel from './AdminPanel';
 import RequestorDashboard from './RequestorDashboard';
@@ -22,7 +22,6 @@ interface DashboardProps {
   sites: Site[];
   expenses: Expense[];
   auditLog: AuditLogItem[];
-  roleRequests: RoleRequest[];
   onLogout: () => void;
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
   onUpdateExpenseStatus: (expenseId: string, newStatus: Status, comment?: string) => void;
@@ -48,11 +47,10 @@ interface DashboardProps {
   onUpdateProfile: (name: string) => void;
   onUpdatePassword: (password: string) => void;
   onTriggerBackup: () => void;
-  onUpdateRequestRoleStatus: (requestId: string, user: User, newRole: Role, newStatus: RoleRequestStatus) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, roleRequests, ...adminProps } = props;
+  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, ...adminProps } = props;
   const [activeTab, setActiveTab] = useState('overview');
   const [adminPanelTab, setAdminPanelTab] = useState('users');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
@@ -94,11 +92,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             categories={categories}
             projects={projects}
             sites={sites}
-            roleRequests={roleRequests}
             activeAdminTab={adminPanelTab}
             setActiveAdminTab={setAdminPanelTab}
             onTriggerBackup={props.onTriggerBackup}
-            onUpdateRequestRoleStatus={props.onUpdateRequestRoleStatus}
           />
         );
       case Role.REQUESTOR:

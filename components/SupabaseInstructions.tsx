@@ -1,251 +1,276 @@
 import React, { useState } from 'react';
 
-const sqlSchema = `-- 1. Enable pg_jsonschema extension
-create extension if not exists pg_jsonschema with schema extensions;
-
--- 2. Create a table for public profiles
-create table profiles (
-  id uuid references auth.users on delete cascade not null primary key,
-  username text unique,
-  name text,
-  email text,
-  role text default 'requestor'::text,
-  status text default 'active'::text not null,
-  updated_at timestamp with time zone,
-
-  constraint username_length check (char_length(username) >= 3)
-);
--- Set up Row Level Security (RLS)
-alter table profiles enable row level security;
-create policy "Public profiles are viewable by everyone." on profiles for select using (true);
-create policy "Users can insert their own profile." on profiles for insert with check (auth.uid() = id);
-create policy "Users can update own profile." on profiles for update using (auth.uid() = id);
-create policy "Admins can update any profile." on profiles for update to authenticated with check (((select role from profiles where id = auth.uid()) = 'admin'::text));
-
-
--- 3. Trigger to automatically create a profile when a new user signs up
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, username, name, email, role)
-  values (new.id, new.raw_user_meta_data->>'username', new.raw_user_meta_data->>'name', new.email, new.raw_user_meta_data->>'role');
-  return new;
-end;
-$$ language plpgsql security definer;
--- create trigger
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
--- 4. Create other application tables
-create table projects (
-  id uuid default gen_random_uuid() primary key,
-  name text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-alter table projects enable row level security;
-create policy "Allow all access to projects" on projects for all using (true) with check (true);
-
-create table sites (
-  id uuid default gen_random_uuid() primary key,
-  name text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-alter table sites enable row level security;
-create policy "Allow all access to sites" on sites for all using (true) with check (true);
-
-create table categories (
-  id uuid default gen_random_uuid() primary key,
-  name text not null,
-  attachment_required boolean default false not null,
-  auto_approve_amount numeric not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-alter table categories enable row level security;
-create policy "Allow all access to categories" on categories for all using (true) with check (true);
-
-create table subcategories (
-  id uuid default gen_random_uuid() primary key,
-  name text not null,
-  attachment_required boolean default false not null,
-  category_id uuid references categories(id) on delete cascade not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-alter table subcategories enable row level security;
-create policy "Allow all access to subcategories" on subcategories for all using (true) with check (true);
-
--- NEW: Table for role requests
-create table role_requests (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references profiles(id) on delete cascade not null,
-  requested_role text not null,
-  status text default 'pending'::text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-alter table role_requests enable row level security;
-create policy "Users can create their own role requests" on role_requests for insert with check (auth.uid() = user_id);
-create policy "Admins can view and manage all role requests" on role_requests for all using (((select role from profiles where id = auth.uid()) = 'admin'::text));
-
-create table expenses (
-  id uuid default gen_random_uuid() primary key,
-  reference_number text not null,
-  requestor_id uuid references profiles(id) not null,
-  category_id uuid references categories(id) not null,
-  subcategory_id uuid references subcategories(id),
-  amount numeric not null,
-  description text not null,
-  project_id uuid references projects(id) not null,
-  site_id uuid references sites(id) not null,
-  submitted_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  status text not null,
-  is_high_priority boolean default false,
-  attachment_path text,
-  subcategory_attachment_path text,
-  history jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-alter table expenses enable row level security;
-create policy "Users can view their own expenses" on expenses for select using (auth.uid() = requestor_id);
-create policy "Support roles can view all expenses" on expenses for select using ( (select role from profiles where id = auth.uid()) in ('admin', 'verifier', 'approver') );
-create policy "Users can create expenses" on expenses for insert with check (auth.uid() = requestor_id);
-create policy "Support roles can update expenses" on expenses for update using ( (select role from profiles where id = auth.uid()) in ('admin', 'verifier', 'approver') );
-
-create table audit_log (
-  id uuid default gen_random_uuid() primary key,
-  timestamp timestamp with time zone default timezone('utc'::text, now()) not null,
-  actor_id uuid references profiles(id) not null,
-  actor_name text not null,
-  action text not null,
-  details text
-);
-alter table audit_log enable row level security;
-create policy "Admins can manage audit log" on audit_log for all using ( (select role from profiles where id = auth.uid()) = 'admin' );
-
--- 5. Create Storage bucket
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('attachments', 'attachments', true, 10485760, ARRAY['image/png', 'image/jpeg', 'application/pdf'])
-on conflict (id) do nothing;
-
-create policy "Allow authenticated users to upload attachments" on storage.objects for insert to authenticated with check ( bucket_id = 'attachments' );
-create policy "Allow users to view their own attachments" on storage.objects for select using ( bucket_id = 'attachments' and (storage.owner_id = auth.uid()) );
-create policy "Allow support roles to view all attachments" on storage.objects for select using ( bucket_id = 'attachments' and ((select role from profiles where id = auth.uid()) in ('admin', 'verifier', 'approver')) );
-
--- 6. Seed initial admin user role after they sign up
--- The application will automatically prompt for admin creation on first run.
--- The manual SQL command is no longer needed.
-`;
-
-interface ConfigurationProps {
+interface SupabaseInstructionsProps {
   onSave: (url: string, key: string) => void;
 }
 
-const Configuration: React.FC<ConfigurationProps> = ({ onSave }) => {
-  const [url, setUrl] = useState('');
-  const [anonKey, setAnonKey] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+const SQL_SCRIPT = `-- This script is idempotent, meaning it can be run multiple times without causing errors.
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(sqlSchema).then(() => {
-      alert('SQL schema copied to clipboard!');
-    }, (err) => {
-      alert('Failed to copy schema. Please copy manually.');
-      console.error('Could not copy text: ', err);
-    });
-  };
+-- 1. Create essential tables
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username text UNIQUE,
+  name text,
+  email text,
+  role text NOT NULL DEFAULT 'requestor'::text,
+  status text NOT NULL DEFAULT 'active'::text
+);
+CREATE TABLE IF NOT EXISTS public.categories (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    name text NOT NULL,
+    attachment_required boolean NOT NULL DEFAULT false,
+    auto_approve_amount numeric NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS public.subcategories (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    category_id uuid NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
+    name text NOT NULL,
+    attachment_required boolean NOT NULL DEFAULT false
+);
+CREATE TABLE IF NOT EXISTS public.projects (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    name text NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS public.sites (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    name text NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS public.expenses (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    reference_number text NOT NULL UNIQUE,
+    requestor_id uuid NOT NULL REFERENCES public.profiles(id),
+    category_id uuid NOT NULL REFERENCES public.categories(id),
+    subcategory_id uuid REFERENCES public.subcategories(id),
+    amount numeric NOT NULL,
+    description text,
+    project_id uuid NOT NULL REFERENCES public.projects(id),
+    site_id uuid NOT NULL REFERENCES public.sites(id),
+    submitted_at timestamp with time zone NOT NULL DEFAULT now(),
+    status text NOT NULL,
+    is_high_priority boolean NOT NULL DEFAULT false,
+    attachment_path text,
+    subcategory_attachment_path text,
+    history jsonb
+);
+CREATE TABLE IF NOT EXISTS public.audit_log (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    "timestamp" timestamp with time zone NOT NULL DEFAULT now(),
+    actor_id uuid REFERENCES public.profiles(id),
+    actor_name text,
+    action text NOT NULL,
+    details text
+);
+
+-- 2. Create the function to auto-create user profiles
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+DECLARE
+  admin_count integer;
+  user_role text;
+  generated_username text;
+BEGIN
+  SELECT count(*) INTO admin_count FROM public.profiles WHERE role = 'admin';
+  IF admin_count = 0 THEN
+    user_role := 'admin';
+  ELSE
+    user_role := 'requestor';
+  END IF;
+  generated_username := split_part(new.email, '@', 1);
+  INSERT INTO public.profiles (id, username, name, email, role)
+  VALUES (new.id, generated_username, generated_username, new.email, user_role);
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 3. Create the trigger to fire the function on new user signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- 4. Create Storage bucket for attachments
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('attachments', 'attachments', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- 5. Set up Row Level Security (RLS)
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subcategories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+
+-- 6. Create NEW, SAFER helper function to get a user's role
+DROP FUNCTION IF EXISTS public.get_user_role(user_id uuid); -- Drop the old problematic function
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS text
+LANGUAGE sql STABLE
+AS $$
+  select role from public.profiles where id = auth.uid();
+$$;
+
+-- 7. Define all RLS Policies (REWRITTEN FOR STABILITY AND SECURITY)
+-- PROFILES
+DROP POLICY IF EXISTS "Allow all access for system user" ON public.profiles;
+CREATE POLICY "Allow all access for system user" ON public.profiles FOR ALL USING (current_user = 'postgres');
+DROP POLICY IF EXISTS "Allow user to view their own profile." ON public.profiles;
+CREATE POLICY "Allow user to view their own profile." ON public.profiles FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow admins to view all profiles." ON public.profiles;
+CREATE POLICY "Allow admins to view all profiles." ON public.profiles FOR SELECT USING (public.get_my_role() = 'admin');
+DROP POLICY IF EXISTS "Users can insert their own profile." ON public.profiles;
+CREATE POLICY "Users can insert their own profile." ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow user to update their own profile." ON public.profiles;
+CREATE POLICY "Allow user to update their own profile." ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow admins to update any profile." ON public.profiles;
+CREATE POLICY "Allow admins to update any profile." ON public.profiles FOR UPDATE USING (public.get_my_role() = 'admin');
+
+-- CONFIG TABLES (categories, projects, etc.)
+DROP POLICY IF EXISTS "Allow authenticated users to read config." ON public.categories;
+CREATE POLICY "Allow authenticated users to read config." ON public.categories FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admins to manage config." ON public.categories;
+CREATE POLICY "Allow admins to manage config." ON public.categories FOR ALL USING (public.get_my_role() = 'admin');
+DROP POLICY IF EXISTS "Allow authenticated users to read config." ON public.subcategories;
+CREATE POLICY "Allow authenticated users to read config." ON public.subcategories FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admins to manage config." ON public.subcategories;
+CREATE POLICY "Allow admins to manage config." ON public.subcategories FOR ALL USING (public.get_my_role() = 'admin');
+DROP POLICY IF EXISTS "Allow authenticated users to read config." ON public.projects;
+CREATE POLICY "Allow authenticated users to read config." ON public.projects FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admins to manage config." ON public.projects;
+CREATE POLICY "Allow admins to manage config." ON public.projects FOR ALL USING (public.get_my_role() = 'admin');
+DROP POLICY IF EXISTS "Allow authenticated users to read config." ON public.sites;
+CREATE POLICY "Allow authenticated users to read config." ON public.sites FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admins to manage config." ON public.sites;
+CREATE POLICY "Allow admins to manage config." ON public.sites FOR ALL USING (public.get_my_role() = 'admin');
+-- AUDIT LOG
+DROP POLICY IF EXISTS "Allow admins to access audit log." ON public.audit_log;
+CREATE POLICY "Allow admins to access audit log." ON public.audit_log FOR ALL USING (public.get_my_role() = 'admin');
+-- EXPENSES
+DROP POLICY IF EXISTS "Allow user to manage their own expenses." ON public.expenses;
+CREATE POLICY "Allow user to manage their own expenses." ON public.expenses FOR ALL USING (auth.uid() = requestor_id);
+DROP POLICY IF EXISTS "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses;
+CREATE POLICY "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses FOR SELECT USING (
+  (public.get_my_role() = 'verifier' AND status = 'Pending Verification') OR
+  (public.get_my_role() = 'approver' AND status = 'Pending Approval') OR
+  (public.get_my_role() = 'admin')
+);
+DROP POLICY IF EXISTS "Allow verifiers/approvers to update expenses." ON public.expenses;
+CREATE POLICY "Allow verifiers/approvers to update expenses." ON public.expenses FOR UPDATE USING (
+  (public.get_my_role() = 'verifier' AND status = 'Pending Verification') OR
+  (public.get_my_role() = 'approver' AND status = 'Pending Approval')
+);
+-- STORAGE
+DROP POLICY IF EXISTS "Allow users to upload attachments." ON storage.objects;
+CREATE POLICY "Allow users to upload attachments." ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'attachments' AND auth.uid() = owner);
+DROP POLICY IF EXISTS "Allow relevant users to view attachments." ON storage.objects;
+CREATE POLICY "Allow relevant users to view attachments." ON storage.objects FOR SELECT USING (bucket_id = 'attachments' AND (
+    auth.uid() = owner OR
+    public.get_my_role() = 'admin' OR
+    (public.get_my_role() IN ('verifier', 'approver'))
+));
+`;
+
+const SetupStep: React.FC<{ number: number; title: string; children: React.ReactNode }> = ({ number, title, children }) => (
+  <div className="p-4 border-l-4 border-primary bg-primary-light">
+    <h4 className="text-lg font-bold text-gray-900">Step {number}: {title}</h4>
+    <div className="mt-2 space-y-2 text-sm text-gray-700">{children}</div>
+  </div>
+);
+
+const SupabaseInstructions: React.FC<SupabaseInstructionsProps> = ({ onSave }) => {
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseKey, setSupabaseKey] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (!url || !anonKey) {
-        setError('Both URL and Anon Key are required.');
-        return;
+    if (supabaseUrl.trim() && supabaseKey.trim()) {
+      onSave(supabaseUrl.trim(), supabaseKey.trim());
     }
-    setLoading(true);
-    // The onSave function will handle initialization and feedback
-    onSave(url, anonKey);
-    // Don't setLoading(false) here, as the app will transition away on success
-  }
+  };
+  
+  const copySqlToClipboard = () => {
+    navigator.clipboard.writeText(SQL_SCRIPT).then(() => {
+        alert('SQL script copied to clipboard!');
+    }, (err) => {
+        alert('Failed to copy script. Please copy it manually.');
+        console.error('Could not copy text: ', err);
+    });
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-3xl p-8 space-y-6 bg-white rounded-lg shadow-md">
+      <div className="w-full max-w-4xl p-8 m-4 space-y-6 bg-white rounded-lg shadow-md">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Backend Setup
-          </h2>
+          <h2 className="text-3xl font-extrabold text-gray-900">First-time Setup</h2>
           <p className="mt-2 text-sm text-gray-600">
-            This app requires a Supabase backend. Please complete the one-time setup below.
+            Please follow these steps to configure your database before using the application.
           </p>
         </div>
         
-        <div className="p-4 space-y-4 text-left border rounded-lg">
-          <h3 className="text-lg font-semibold">1. Enter Your Supabase Credentials</h3>
-          <p className="text-sm text-gray-600">
-              Go to your project on <a href="https://supabase.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Supabase</a>, navigate to <span className="font-semibold">Settings &gt; API</span>, and copy your Project URL and anon public key below.
-          </p>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="supabase-url" className="block text-sm font-medium text-gray-700">Supabase URL</label>
-              <input
-                id="supabase-url"
-                type="text"
-                required
-                className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                placeholder="https://your-project.supabase.co"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="supabase-key" className="block text-sm font-medium text-gray-700">Supabase Anon Key (public)</label>
-              <input
-                id="supabase-key"
-                type="text"
-                required
-                className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                placeholder="eyJhbGciOiJI..."
-                value={anonKey}
-                onChange={(e) => setAnonKey(e.target.value)}
-              />
-            </div>
-             {error && <p className="text-sm text-red-600">{error}</p>}
-            <div>
+        <div className="space-y-4">
+            <SetupStep number={1} title="Create Database Schema">
+                 <p>This script creates all the necessary tables, security policies, and functions for the application to work. It is safe to run multiple times.</p>
+                 <ol className="pl-5 list-decimal">
+                    <li>Go to your Supabase project's <a href="https://app.supabase.io" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">SQL Editor</a>.</li>
+                    <li>Click the button below to copy the full database setup script.</li>
+                    <li>Paste the script into your Supabase SQL Editor and click "RUN".</li>
+                 </ol>
+                <textarea
+                    readOnly
+                    value={SQL_SCRIPT}
+                    className="w-full h-32 p-2 mt-2 text-xs border border-gray-300 rounded-md font-mono focus:outline-none"
+                />
                 <button
-                type="submit"
-                disabled={loading}
-                className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md group bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  type="button"
+                  onClick={copySqlToClipboard}
+                  className="px-4 py-2 mt-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-secondary hover:bg-green-600"
                 >
-                {loading ? 'Saving...' : 'Save and Continue'}
+                  Copy SQL
                 </button>
-            </div>
-          </form>
+            </SetupStep>
 
-          <hr className="my-4"/>
-
-          <h3 className="text-lg font-semibold">2. Create Database Schema</h3>
-          <p className="text-sm text-gray-600">If you haven't already, go to the "SQL Editor" in your Supabase project, click "New query", paste the entire SQL script below, and click "RUN".</p>
-          
-          <div className="relative">
-            <pre className="p-4 text-sm bg-gray-100 border rounded-md max-h-48 overflow-auto">
-              <code>{sqlSchema}</code>
-            </pre>
-            <button
-              onClick={copyToClipboard}
-              className="absolute px-2 py-1 text-xs text-white rounded-md top-2 right-2 bg-primary hover:bg-primary-hover"
-            >
-              Copy SQL
-            </button>
-          </div>
-
-          <h3 className="text-lg font-semibold">3. Next Step</h3>
-          <p className="text-sm text-gray-600">After saving your credentials, the application will guide you to create the first administrator account.</p>
-
+            <SetupStep number={2} title="Connect Your Application">
+                <p>Finally, provide your Supabase Project URL and Anon Key to connect the application. You can find these in your Supabase project's API settings.</p>
+                <form className="pt-2 space-y-4" onSubmit={handleSubmit}>
+                  <div>
+                    <label htmlFor="supabase-url" className="block text-sm font-medium text-gray-700">Supabase Project URL</label>
+                    <input
+                      id="supabase-url"
+                      type="text"
+                      required
+                      className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                      placeholder="https://your-project-ref.supabase.co"
+                      value={supabaseUrl}
+                      onChange={(e) => setSupabaseUrl(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="supabase-key" className="block text-sm font-medium text-gray-700">Supabase Anon (Public) Key</label>
+                    <input
+                      id="supabase-key"
+                      type="password"
+                      required
+                      className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                      placeholder="ey..."
+                      value={supabaseKey}
+                      onChange={(e) => setSupabaseKey(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="submit"
+                      className="relative flex justify-center w-full px-4 py-2 mt-2 text-sm font-medium text-white border border-transparent rounded-md group bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    >
+                      Save and Connect
+                    </button>
+                  </div>
+                </form>
+            </SetupStep>
         </div>
       </div>
     </div>
   );
 };
 
-export default Configuration;
+export default SupabaseInstructions;
