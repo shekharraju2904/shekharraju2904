@@ -68,16 +68,27 @@ DECLARE
   admin_count integer;
   user_role text;
   generated_username text;
+  full_name text;
 BEGIN
+  -- Determine user role
   SELECT count(*) INTO admin_count FROM public.profiles WHERE role = 'admin';
   IF admin_count = 0 THEN
     user_role := 'admin';
   ELSE
     user_role := 'requestor';
   END IF;
-  generated_username := split_part(new.email, '@', 1);
+  
+  -- Use name from metadata if available, otherwise fallback to part of email
+  full_name := new.raw_user_meta_data->>'name';
+  IF full_name IS NULL OR full_name = '' THEN
+    full_name := split_part(new.email, '@', 1);
+  END IF;
+
+  -- Generate a more unique username to prevent collisions
+  generated_username := split_part(new.email, '@', 1) || '-' || substr(gen_random_uuid()::text, 1, 4);
+
   INSERT INTO public.profiles (id, username, name, email, role)
-  VALUES (new.id, generated_username, generated_username, new.email, user_role);
+  VALUES (new.id, generated_username, full_name, new.email, user_role);
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

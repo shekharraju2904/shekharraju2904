@@ -36,6 +36,9 @@ const Login: React.FC = () => {
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: { name }
+      }
     });
 
     if (signUpError) {

@@ -22,6 +22,9 @@ const AdminSetup: React.FC<AdminSetupProps> = ({ onAdminCreated }) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: { name }
+      }
     });
 
     if (error) {
