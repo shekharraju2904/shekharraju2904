@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Expense, Status, Role, User, Category, Project, Site } from '../types';
 import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon, StarIcon, TrashIcon } from './Icons';
 import { supabase } from '../supabaseClient';
+import Avatar from './Avatar';
 
 interface ExpenseCardProps {
   expense: Expense;
@@ -161,20 +162,46 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                 </div>
             )}
             
-             <div>
+            <div>
                 <button onClick={() => setShowHistory(!showHistory)} className="flex items-center justify-between w-full text-sm font-medium text-left text-gray-600 hover:text-gray-900">
                     <span>Approval History & Comments</span>
                     <ChevronDownIcon className={`w-5 h-5 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
                 </button>
                 {showHistory && (
-                    <div className="mt-2 space-y-3 border-l-2 border-gray-200 pl-4">
-                        {expense.history.map((item, index) => (
-                            <div key={index}>
-                                <p className="text-sm font-medium text-gray-800">{item.action} by {item.actorName}</p>
-                                <p className="text-xs text-gray-500">{formatDateTime(item.timestamp)}</p>
-                                {item.comment && <p className="pl-2 mt-1 text-sm italic text-gray-600 border-l-2 border-gray-300">"{item.comment}"</p>}
-                            </div>
-                        ))}
+                    <div className="pt-4 mt-2 space-y-4 border-t border-gray-200">
+                        {expense.history.map((item, index) => {
+                            const isComment = item.action === 'Comment';
+                            const isCurrentUser = item.actorId === currentUser.id;
+                            
+                            if (isComment) {
+                                return (
+                                    <div key={index} className={`flex items-start gap-2.5 ${isCurrentUser ? 'justify-end' : ''}`}>
+                                        {!isCurrentUser && item.actorId !== 'system' && <Avatar name={item.actorName} size="sm" />}
+                                        <div className={`flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-gray-200 rounded-xl ${isCurrentUser ? 'bg-primary text-white rounded-br-none' : 'bg-gray-100 text-gray-900 rounded-bl-none'}`}>
+                                            <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                                <span className={`text-sm font-semibold ${isCurrentUser ? 'text-white' : 'text-gray-900'}`}>{item.actorName}</span>
+                                                <span className={`text-xs font-normal ${isCurrentUser ? 'text-gray-200' : 'text-gray-500'}`}>{formatDateTime(item.timestamp)}</span>
+                                            </div>
+                                            {item.comment && <p className="py-2 text-sm font-normal">{item.comment}</p>}
+                                        </div>
+                                        {isCurrentUser && <Avatar name={currentUser.name} size="sm" />}
+                                    </div>
+                                );
+                            } else {
+                                // System action
+                                return (
+                                    <div key={index} className="flex items-center w-full">
+                                        <div className="w-full h-px bg-gray-200"></div>
+                                        <div className="px-3 text-center shrink-0">
+                                            <p className="text-sm font-medium text-gray-700">{item.action} by {item.actorName}</p>
+                                            <p className="text-xs text-gray-500 whitespace-nowrap">{formatDateTime(item.timestamp)}</p>
+                                            {item.comment && <p className="max-w-xs mx-auto text-xs italic text-gray-500">"{item.comment}"</p>}
+                                        </div>
+                                        <div className="w-full h-px bg-gray-200"></div>
+                                    </div>
+                                );
+                            }
+                        })}
                     </div>
                 )}
             </div>
