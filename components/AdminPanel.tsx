@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense } from '../types';
-import { PencilIcon, TrashIcon, PlusIcon, KeyIcon, BanIcon, CheckCircleIcon } from './Icons';
+import { PencilIcon, TrashIcon, PlusIcon, KeyIcon, BanIcon, CheckCircleIcon, ArrowUturnLeftIcon } from './Icons';
 import Modal from './Modal';
 
 interface AdminPanelProps {
@@ -9,6 +9,7 @@ interface AdminPanelProps {
   projects: Project[];
   sites: Site[];
   expenses: Expense[];
+  deletedExpenses: Expense[];
   auditLog: AuditLogItem[];
   onAddUser: (user: Omit<User, 'id'>) => void;
   onUpdateUser: (user: User) => void;
@@ -29,16 +30,19 @@ interface AdminPanelProps {
   activeAdminTab: string;
   setActiveAdminTab: (tabId: string) => void;
   onTriggerBackup: () => void;
+  onRestoreExpense: (expenseId: string) => void;
+  onPermanentlyDeleteExpense: (expenseId: string) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
-  users, categories, projects, sites, expenses, auditLog,
+  users, categories, projects, sites, expenses, deletedExpenses, auditLog,
   onAddUser, onUpdateUser, onToggleUserStatus, onResetUserPassword,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
   onAddSite, onUpdateSite, onDeleteSite,
-  activeAdminTab, setActiveAdminTab, onTriggerBackup
+  activeAdminTab, setActiveAdminTab, onTriggerBackup,
+  onRestoreExpense, onPermanentlyDeleteExpense
 }) => {
   const [isUserModalOpen, setUserModalOpen] = useState(false);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -203,6 +207,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
+  
+  const getUserNameById = (id: string | undefined) => {
+    if (!id) return 'N/A';
+    return users.find(u => u.id === id)?.name || 'Unknown User';
+  };
 
   const TabButton = ({ tabId, label }: { tabId: string, label: string }) => (
      <button
@@ -225,6 +234,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <TabButton tabId="sites" label="Site Management" />
           <TabButton tabId="audit" label="Audit Log" />
           <TabButton tabId="system" label="System" />
+          <TabButton tabId="recycle_bin" label="Recycle Bin" />
         </nav>
       </div>
 
@@ -528,6 +538,62 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        
+        {activeAdminTab === 'recycle_bin' && (
+           <div>
+            <div className="sm:flex sm:items-center">
+              <div className="sm:flex-auto">
+                <h3 className="text-base font-semibold leading-6 text-gray-900">Recycle Bin</h3>
+                <p className="mt-2 text-sm text-gray-700">Deleted expenses are stored here and can be restored or permanently deleted.</p>
+                <p className="mt-1 text-xs italic text-gray-500">Note: Items in the Recycle Bin will be permanently deleted after 5 days.</p>
+              </div>
+            </div>
+            <div className="flow-root mt-8">
+                <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                    <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                            <table className="min-w-full bg-white divide-y divide-gray-300">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Reference #</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Requestor</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount (₹)</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Deleted On</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Deleted By</th>
+                                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {deletedExpenses.map((expense) => (
+                                        <tr key={expense.id}>
+                                            <td className="py-4 pl-4 pr-3 text-sm font-mono text-gray-900 whitespace-nowrap sm:pl-6">{expense.referenceNumber}</td>
+                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.requestorName}</td>
+                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.amount.toLocaleString('en-IN')}</td>
+                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{formatDateTime(expense.deletedAt!)}</td>
+                                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getUserNameById(expense.deletedBy)}</td>
+                                            <td className="relative flex items-center justify-end py-4 pl-3 pr-4 space-x-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
+                                                <button onClick={() => onRestoreExpense(expense.id)} className="text-secondary hover:text-green-700" title="Restore Expense">
+                                                    <ArrowUturnLeftIcon className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => onPermanentlyDeleteExpense(expense.id)} className="text-red-600 hover:text-red-800" title="Delete Permanently">
+                                                  <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {deletedExpenses.length === 0 && (
+                                       <tr>
+                                        <td colSpan={6} className="py-8 text-center text-sm text-gray-500">The Recycle Bin is empty.</td>
+                                      </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
           </div>
         )}

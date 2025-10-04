@@ -71,6 +71,9 @@ export interface Expense {
   attachment_path: string | null;
   subcategory_attachment_path: string | null;
   history: HistoryItem[];
+  deletedAt?: string; // ISO string
+  deletedBy?: string; // user id
+  statusBeforeDelete?: Status;
 }
 
 export interface AuditLogItem {

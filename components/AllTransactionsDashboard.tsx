@@ -10,10 +10,10 @@ interface AllTransactionsDashboardProps {
   sites: Site[];
   currentUser: User;
   onViewExpense: (expense: Expense) => void;
-  onDeleteExpense?: (expenseId: string) => void;
+  onSoftDeleteExpense?: (expenseId: string) => void;
 }
 
-const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ expenses, categories, projects, sites, currentUser, onViewExpense, onDeleteExpense }) => {
+const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ expenses, categories, projects, sites, currentUser, onViewExpense, onSoftDeleteExpense }) => {
   const [statusFilter, setStatusFilter] = useState<Status | 'All'>('All');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,7 +136,7 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
           emptyMessage="No expenses match the current filters."
           currentUser={currentUser}
           onViewExpense={onViewExpense}
-          onDeleteExpense={onDeleteExpense}
+          onSoftDeleteExpense={onSoftDeleteExpense}
         />
       </div>
     </div>

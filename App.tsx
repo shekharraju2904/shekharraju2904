@@ -27,6 +27,28 @@ const mapDbUserToAppUser = (dbProfile: any): User => ({
   status: dbProfile.status,
 });
 
+const mapDbExpenseToAppExpense = (e: any, userMap: Map<string, string>): Expense => ({
+    id: e.id,
+    referenceNumber: e.reference_number,
+    requestorId: e.requestor_id,
+    requestorName: userMap.get(e.requestor_id) || 'Unknown User',
+    categoryId: e.category_id,
+    subcategoryId: e.subcategory_id,
+    amount: e.amount,
+    description: e.description,
+    projectId: e.project_id,
+    siteId: e.site_id,
+    submittedAt: e.submitted_at,
+    status: e.status,
+    isHighPriority: e.is_high_priority,
+    attachment_path: e.attachment_path,
+    subcategory_attachment_path: e.subcategory_attachment_path,
+    history: e.history,
+    deletedAt: e.deleted_at,
+    deletedBy: e.deleted_by,
+    statusBeforeDelete: e.status_before_delete,
+});
+
 const App: React.FC = () => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -36,6 +58,7 @@ const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [deletedExpenses, setDeletedExpenses] = useState<Expense[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [needsAdminSetup, setNeedsAdminSetup] = useState(false);
@@ -53,18 +76,11 @@ const App: React.FC = () => {
     setLoading(true);
 
     try {
-      // FIX: The original query used a join that can fail if the schema relationship isn't detected.
-      // This is changed to a simple select, and the join is performed manually on the client.
       let expensesQuery = supabase
         .from('expenses')
         .select('*')
+        .is('deleted_at', null)
         .order('submitted_at', { ascending: false });
-      
-      // With the new RLS policy, all users can see all expenses. The UI will handle filtering if needed.
-      // This check is no longer strictly necessary due to RLS but is kept for potential future logic.
-      // if (currentUser.role === Role.REQUESTOR) {
-      //   expensesQuery = expensesQuery.eq('requestor_id', currentUser.id);
-      // }
 
       const baseRequests = [
         supabase.from('profiles').select('*'),
@@ -76,6 +92,7 @@ const App: React.FC = () => {
 
       const adminRequests = (currentUser.role === Role.ADMIN) ? [
         supabase.from('audit_log').select('*').order('timestamp', { ascending: false }),
+        supabase.from('expenses').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }),
       ] : [];
 
       const allRequests = [...baseRequests, ...adminRequests];
@@ -92,13 +109,13 @@ const App: React.FC = () => {
       ] = responses;
 
       const auditLogRes = (currentUser.role === Role.ADMIN) ? adminResponses[0] : null;
+      const deletedExpensesRes = (currentUser.role === Role.ADMIN) ? adminResponses[1] : null;
       
       if (usersRes.error) throw usersRes.error;
-      // FIX: Create a map of users to manually join names to expenses.
       const appUsers = usersRes.data.map(mapDbUserToAppUser);
       setUsers(appUsers);
-      const userMap = new Map(appUsers.map(u => [u.id, u.name]));
-
+      // FIX: Explicitly specify Map generic types to ensure correct type inference.
+      const userMap = new Map<string, string>(appUsers.map(u => [u.id, u.name]));
 
       if (categoriesRes.error) throw categoriesRes.error;
       const fetchedCategories = categoriesRes.data.map(c => ({
@@ -121,26 +138,16 @@ const App: React.FC = () => {
       setSites(sitesRes.data);
 
       if (expensesRes.error) throw expensesRes.error;
-      const fetchedExpenses = expensesRes.data.map((e: any) => ({
-        id: e.id,
-        referenceNumber: e.reference_number,
-        requestorId: e.requestor_id,
-        // FIX: Look up the requestor name from the user map.
-        requestorName: userMap.get(e.requestor_id) || 'Unknown User',
-        categoryId: e.category_id,
-        subcategoryId: e.subcategory_id,
-        amount: e.amount,
-        description: e.description,
-        projectId: e.project_id,
-        siteId: e.site_id,
-        submittedAt: e.submitted_at,
-        status: e.status,
-        isHighPriority: e.is_high_priority,
-        attachment_path: e.attachment_path,
-        subcategory_attachment_path: e.subcategory_attachment_path,
-        history: e.history,
-      }));
+      const fetchedExpenses = expensesRes.data.map((e: any) => mapDbExpenseToAppExpense(e, userMap));
       setExpenses(fetchedExpenses);
+
+      if (deletedExpensesRes) {
+        if (deletedExpensesRes.error) throw deletedExpensesRes.error;
+        const fetchedDeletedExpenses = deletedExpensesRes.data.map((e: any) => mapDbExpenseToAppExpense(e, userMap));
+        setDeletedExpenses(fetchedDeletedExpenses);
+      } else {
+        setDeletedExpenses([]);
+      }
 
       if (auditLogRes) {
         if (auditLogRes.error) throw auditLogRes.error;
@@ -155,7 +162,6 @@ const App: React.FC = () => {
 
     } catch (error) {
       console.error("Error fetching data:", error);
-      // FIX: Safely handle error message from 'unknown' type.
       const message = error instanceof Error ? error.message : String(error);
       alert(`Could not fetch data from the server: ${message}`);
     } finally {
@@ -215,8 +221,6 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, [isConfigured]);
 
-  // FIX: This useEffect now ONLY fetches the user profile when the session changes.
-  // This resolves the race condition by separating profile fetching from data fetching.
   useEffect(() => {
     if (!isConfigured) {
         return;
@@ -249,7 +253,6 @@ const App: React.FC = () => {
     fetchUserProfile();
   }, [session, isConfigured]);
 
-  // FIX: This new useEffect ensures that data fetching only occurs AFTER a valid user profile has been loaded.
   useEffect(() => {
     if (currentUser && isConfigured) {
         fetchData();
@@ -280,7 +283,6 @@ const App: React.FC = () => {
         if (error) throw error;
         attachment_path = filePath;
       } catch (error) {
-        // FIX: Safely handle error message from 'unknown' type.
         const message = error instanceof Error ? error.message : String(error);
         alert(`Failed to upload attachment: ${message}`);
         console.error(error);
@@ -297,7 +299,6 @@ const App: React.FC = () => {
         if (error) throw error;
         subcategory_attachment_path = filePath;
       } catch (error) {
-        // FIX: Safely handle error message from 'unknown' type.
         const message = error instanceof Error ? error.message : String(error);
         alert(`Failed to upload subcategory attachment: ${message}`);
         console.error(error);
@@ -355,7 +356,6 @@ const App: React.FC = () => {
       const { error: insertError } = await supabase.from('expenses').insert(expenseForDb);
       if (insertError) throw insertError;
     } catch(error) {
-       // FIX: Safely handle error message from 'unknown' type.
        const message = error instanceof Error ? error.message : String(error);
        alert(`Failed to create expense request: ${message}`);
        console.error(error);
@@ -414,28 +414,9 @@ const App: React.FC = () => {
         return;
     }
     
-    const updatedDbExpense = data[0];
-    const userMap = new Map(users.map(u => [u.id, u.name]));
-    const updatedExpense: Expense = {
-        id: updatedDbExpense.id,
-        referenceNumber: updatedDbExpense.reference_number,
-        requestorId: updatedDbExpense.requestor_id,
-        requestorName: userMap.get(updatedDbExpense.requestor_id) || 'Unknown User',
-        categoryId: updatedDbExpense.category_id,
-        subcategoryId: updatedDbExpense.subcategory_id,
-        amount: updatedDbExpense.amount,
-        description: updatedDbExpense.description,
-        projectId: updatedDbExpense.project_id,
-        siteId: updatedDbExpense.site_id,
-        submittedAt: updatedDbExpense.submitted_at,
-        status: updatedDbExpense.status,
-        isHighPriority: updatedDbExpense.is_high_priority,
-        attachment_path: updatedDbExpense.attachment_path,
-        subcategory_attachment_path: updatedDbExpense.subcategory_attachment_path,
-        history: updatedDbExpense.history,
-    };
-
-    setExpenses(prev => prev.map(e => e.id === expenseId ? updatedExpense : e));
+    await fetchData();
+    const updatedExpense = expenses.find(e => e.id === expenseId); // Re-find from refreshed data
+    if (!updatedExpense) return;
 
     const requestor = users.find(u => u.id === updatedExpense.requestorId);
     const category = categories.find(c => c.id === updatedExpense.categoryId);
@@ -732,7 +713,6 @@ const App: React.FC = () => {
       await addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
       await fetchData();
     } catch (error) {
-      // FIX: Safely handle error message from 'unknown' type.
       const message = error instanceof Error ? error.message : String(error);
       alert(`Failed to generate backup: ${message}`);
     } finally {
@@ -740,7 +720,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteExpense = async (expenseId: string) => {
+  const handleSoftDeleteExpense = async (expenseId: string) => {
     if (!currentUser || currentUser.role !== Role.ADMIN) {
         alert("You are not authorized to perform this action.");
         return;
@@ -752,47 +732,114 @@ const App: React.FC = () => {
         return;
     }
 
-    if (!window.confirm(`Are you sure you want to permanently delete expense ${expenseToDelete.referenceNumber}? This will also delete any associated attachments and cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to delete expense ${expenseToDelete.referenceNumber}? It will be moved to the Recycle Bin.`)) {
         return;
     }
 
     setLoading(true);
     try {
-        // 1. Delete attachments from storage
-        const pathsToRemove: string[] = [];
-        if (expenseToDelete.attachment_path) {
-            pathsToRemove.push(expenseToDelete.attachment_path);
-        }
-        if (expenseToDelete.subcategory_attachment_path) {
-            pathsToRemove.push(expenseToDelete.subcategory_attachment_path);
-        }
-
-        if (pathsToRemove.length > 0) {
-            const { error: storageError } = await supabase.storage.from('attachments').remove(pathsToRemove);
-            if (storageError) {
-                // Log error but proceed with DB deletion, as the record is the source of truth
-                console.error("Could not delete attachment(s), but proceeding with expense deletion:", storageError);
-            }
-        }
-
-        // 2. Delete expense record from database
-        const { error: dbError } = await supabase.from('expenses').delete().eq('id', expenseId);
-        if (dbError) throw dbError;
-
-        // 3. Log the action
-        await addAuditLogEntry('Expense Deleted', `Deleted expense '${expenseToDelete.referenceNumber}' submitted by ${expenseToDelete.requestorName}.`);
-
-        alert("Expense deleted successfully.");
-        // 4. Refresh data
+        const { error } = await supabase
+            .from('expenses')
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: currentUser.id,
+                status_before_delete: expenseToDelete.status,
+                status: 'Deleted' // A temporary status while in recycle bin
+            })
+            .eq('id', expenseId);
+        
+        if (error) throw error;
+        
+        await addAuditLogEntry('Expense Soft Deleted', `Moved expense '${expenseToDelete.referenceNumber}' to Recycle Bin.`);
+        alert("Expense moved to Recycle Bin.");
         await fetchData();
 
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        alert(`Failed to delete expense: ${message}`);
+        alert(`Failed to move expense to Recycle Bin: ${message}`);
     } finally {
         setLoading(false);
     }
   };
+
+  const handleRestoreExpense = async (expenseId: string) => {
+      if (!currentUser || currentUser.role !== Role.ADMIN) {
+          alert("You are not authorized to perform this action.");
+          return;
+      }
+      const expenseToRestore = deletedExpenses.find(e => e.id === expenseId);
+      if (!expenseToRestore) {
+          alert("Could not find the expense to restore.");
+          return;
+      }
+
+      setLoading(true);
+      try {
+          const { error } = await supabase
+              .from('expenses')
+              .update({
+                  deleted_at: null,
+                  deleted_by: null,
+                  status: expenseToRestore.statusBeforeDelete,
+                  status_before_delete: null,
+              })
+              .eq('id', expenseId);
+
+          if (error) throw error;
+          
+          await addAuditLogEntry('Expense Restored', `Restored expense '${expenseToRestore.referenceNumber}' from Recycle Bin.`);
+          alert("Expense restored successfully.");
+          await fetchData();
+      } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          alert(`Failed to restore expense: ${message}`);
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  const handlePermanentlyDeleteExpense = async (expenseId: string) => {
+    if (!currentUser || currentUser.role !== Role.ADMIN) {
+        alert("You are not authorized to perform this action.");
+        return;
+    }
+    
+    const expenseToDelete = deletedExpenses.find(e => e.id === expenseId);
+    if (!expenseToDelete) {
+        alert("Could not find the expense to delete.");
+        return;
+    }
+
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete expense ${expenseToDelete.referenceNumber}? This action cannot be undone.`)) {
+        return;
+    }
+
+    setLoading(true);
+    try {
+        const pathsToRemove: string[] = [];
+        if (expenseToDelete.attachment_path) pathsToRemove.push(expenseToDelete.attachment_path);
+        if (expenseToDelete.subcategory_attachment_path) pathsToRemove.push(expenseToDelete.subcategory_attachment_path);
+
+        if (pathsToRemove.length > 0) {
+            const { error: storageError } = await supabase.storage.from('attachments').remove(pathsToRemove);
+            if (storageError) console.error("Could not delete attachment(s), but proceeding:", storageError);
+        }
+
+        const { error: dbError } = await supabase.from('expenses').delete().eq('id', expenseId);
+        if (dbError) throw dbError;
+
+        await addAuditLogEntry('Expense Permanently Deleted', `Permanently deleted expense '${expenseToDelete.referenceNumber}'.`);
+        alert("Expense permanently deleted.");
+        await fetchData();
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        alert(`Failed to permanently delete expense: ${message}`);
+    } finally {
+        setLoading(false);
+    }
+  };
+
 
   if (!isConfigured) {
     return <SupabaseInstructions onSave={handleSaveConfiguration} />;
@@ -818,6 +865,7 @@ const App: React.FC = () => {
       projects={projects}
       sites={sites}
       expenses={expenses}
+      deletedExpenses={deletedExpenses}
       auditLog={auditLog}
       onLogout={() => supabase.auth.signOut()}
       onAddExpense={handleAddExpense}
@@ -844,7 +892,9 @@ const App: React.FC = () => {
       onUpdateProfile={handleUpdateUserProfile}
       onUpdatePassword={handleUpdateUserPassword}
       onTriggerBackup={handleTriggerBackup}
-      onDeleteExpense={handleDeleteExpense}
+      onSoftDeleteExpense={handleSoftDeleteExpense}
+      onRestoreExpense={handleRestoreExpense}
+      onPermanentlyDeleteExpense={handlePermanentlyDeleteExpense}
     />
   );
 };

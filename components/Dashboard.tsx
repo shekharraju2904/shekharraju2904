@@ -22,6 +22,7 @@ interface DashboardProps {
   projects: Project[];
   sites: Site[];
   expenses: Expense[];
+  deletedExpenses: Expense[];
   auditLog: AuditLogItem[];
   onLogout: () => void;
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
@@ -48,11 +49,13 @@ interface DashboardProps {
   onUpdateProfile: (name: string) => void;
   onUpdatePassword: (password: string) => void;
   onTriggerBackup: () => void;
-  onDeleteExpense: (expenseId: string) => void;
+  onSoftDeleteExpense: (expenseId: string) => void;
+  onRestoreExpense: (expenseId: string) => void;
+  onPermanentlyDeleteExpense: (expenseId: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onDeleteExpense, ...adminProps } = props;
+  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onSoftDeleteExpense, ...adminProps } = props;
   const [activeTab, setActiveTab] = useState('overview');
   const [adminPanelTab, setAdminPanelTab] = useState('users');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
@@ -216,7 +219,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 sites={sites}
                 currentUser={currentUser}
                 onViewExpense={setModalExpense}
-                onDeleteExpense={onDeleteExpense}
+                onSoftDeleteExpense={onSoftDeleteExpense}
               />
             )}
             {activeTab === 'attachments' && canSeeAttachmentsTab && (
@@ -269,8 +272,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 } : undefined}
                 onAddComment={onAddExpenseComment}
                 onToggleExpensePriority={adminProps.onToggleExpensePriority}
-                onDeleteExpense={onDeleteExpense ? () => {
-                  onDeleteExpense(modalExpense.id);
+                onSoftDeleteExpense={onSoftDeleteExpense ? () => {
+                  onSoftDeleteExpense(modalExpense.id);
                   setModalExpense(null);
                 } : undefined}
                 onClose={() => setModalExpense(null)}

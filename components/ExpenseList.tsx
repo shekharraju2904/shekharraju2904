@@ -13,7 +13,7 @@ interface ExpenseListProps {
   onViewExpense: (expense: Expense) => void;
   onUpdateStatus?: (expenseId: string, newStatus: Status, comment?: string) => void;
   onToggleExpensePriority?: (expenseId: string) => void;
-  onDeleteExpense?: (expenseId: string) => void;
+  onSoftDeleteExpense?: (expenseId: string) => void;
   isSelectionEnabled?: boolean;
   selectedExpenseIds?: string[];
   onToggleSelection?: (expenseId: string) => void;
@@ -30,7 +30,7 @@ const formatDate = (isoString: string) => {
 };
 
 const ExpenseList: React.FC<ExpenseListProps> = ({ 
-  expenses, categories, projects, sites, title, emptyMessage, currentUser, onViewExpense, onDeleteExpense,
+  expenses, categories, projects, sites, title, emptyMessage, currentUser, onViewExpense, onSoftDeleteExpense,
   isSelectionEnabled = false, selectedExpenseIds = [], onToggleSelection, onToggleSelectAll
 }) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -135,11 +135,11 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
                       <td className="relative flex items-center justify-end py-4 pl-3 pr-4 space-x-2 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
                         <button onClick={() => onViewExpense(expense)} className="text-primary hover:text-primary-hover" title="View Details"><EyeIcon className="w-5 h-5"/></button>
-                        {currentUser.role === Role.ADMIN && onDeleteExpense && (expense.status === Status.APPROVED || expense.status === Status.REJECTED) && (
+                        {currentUser.role === Role.ADMIN && onSoftDeleteExpense && (expense.status === Status.APPROVED || expense.status === Status.REJECTED) && (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onDeleteExpense(expense.id);
+                                    onSoftDeleteExpense(expense.id);
                                 }}
                                 className="text-red-600 hover:text-red-800"
                                 title="Delete Expense"

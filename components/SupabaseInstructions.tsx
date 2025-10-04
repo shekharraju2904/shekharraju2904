@@ -50,7 +50,10 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     is_high_priority boolean NOT NULL DEFAULT false,
     attachment_path text,
     subcategory_attachment_path text,
-    history jsonb
+    history jsonb,
+    deleted_at timestamp with time zone,
+    deleted_by uuid REFERENCES public.profiles(id),
+    status_before_delete text
 );
 CREATE TABLE IF NOT EXISTS public.audit_log (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -196,6 +199,12 @@ DROP POLICY IF EXISTS "Allow admins to update expenses." ON public.expenses;
 CREATE POLICY "Allow admins to update expenses." ON public.expenses FOR UPDATE
 USING (public.get_my_role() = 'admin')
 WITH CHECK (true);
+
+-- DELETE policy for admin (for permanent deletion from recycle bin)
+DROP POLICY IF EXISTS "Allow admins to delete expenses." ON public.expenses;
+CREATE POLICY "Allow admins to delete expenses." ON public.expenses FOR DELETE
+USING (public.get_my_role() = 'admin');
+
 
 -- STORAGE
 DROP POLICY IF EXISTS "Allow users to upload attachments." ON storage.objects;
