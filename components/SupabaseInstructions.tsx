@@ -168,11 +168,27 @@ CREATE POLICY "Allow verifiers/approvers/admins to see relevant expenses." ON pu
   (public.get_my_role() = 'approver' AND status = 'Pending Approval') OR
   (public.get_my_role() = 'admin')
 );
+
+-- FIX: The original combined update policy failed when a status was changed, because the new row state
+-- would violate the policy. These policies separate the logic for verifiers and approvers and use
+-- WITH CHECK to allow valid status transitions, including keeping the same status (for priority changes).
 DROP POLICY IF EXISTS "Allow verifiers/approvers to update expenses." ON public.expenses;
-CREATE POLICY "Allow verifiers/approvers to update expenses." ON public.expenses FOR UPDATE USING (
-  (public.get_my_role() = 'verifier' AND status = 'Pending Verification') OR
-  (public.get_my_role() = 'approver' AND status = 'Pending Approval')
-);
+DROP POLICY IF EXISTS "Allow verifiers to update expenses." ON public.expenses;
+CREATE POLICY "Allow verifiers to update expenses." ON public.expenses FOR UPDATE
+USING (public.get_my_role() = 'verifier' AND status = 'Pending Verification')
+WITH CHECK (status IN ('Pending Approval', 'Rejected', 'Pending Verification'));
+
+DROP POLICY IF EXISTS "Allow approvers to update expenses." ON public.expenses;
+CREATE POLICY "Allow approvers to update expenses." ON public.expenses FOR UPDATE
+USING (public.get_my_role() = 'approver' AND status = 'Pending Approval')
+WITH CHECK (status IN ('Approved', 'Rejected', 'Pending Approval'));
+
+-- This policy allows admins to make updates (like toggling priority) on any expense regardless of status.
+DROP POLICY IF EXISTS "Allow admins to update expenses." ON public.expenses;
+CREATE POLICY "Allow admins to update expenses." ON public.expenses FOR UPDATE
+USING (public.get_my_role() = 'admin')
+WITH CHECK (true);
+
 -- STORAGE
 DROP POLICY IF EXISTS "Allow users to upload attachments." ON storage.objects;
 CREATE POLICY "Allow users to upload attachments." ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'attachments' AND auth.uid() = owner);
