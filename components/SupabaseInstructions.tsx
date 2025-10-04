@@ -128,8 +128,10 @@ DROP POLICY IF EXISTS "Allow all access for system user" ON public.profiles;
 CREATE POLICY "Allow all access for system user" ON public.profiles FOR ALL USING (current_user = 'postgres');
 DROP POLICY IF EXISTS "Allow user to view their own profile." ON public.profiles;
 CREATE POLICY "Allow user to view their own profile." ON public.profiles FOR SELECT USING (auth.uid() = id);
+-- FIX: Replaced admin-only policy with a policy that includes verifiers and approvers to allow DB joins to succeed.
 DROP POLICY IF EXISTS "Allow admins to view all profiles." ON public.profiles;
-CREATE POLICY "Allow admins to view all profiles." ON public.profiles FOR SELECT USING (public.get_my_role() = 'admin');
+DROP POLICY IF EXISTS "Allow elevated roles to view profiles." ON public.profiles;
+CREATE POLICY "Allow elevated roles to view profiles." ON public.profiles FOR SELECT USING (public.get_my_role() IN ('admin', 'verifier', 'approver'));
 DROP POLICY IF EXISTS "Users can insert their own profile." ON public.profiles;
 CREATE POLICY "Users can insert their own profile." ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 DROP POLICY IF EXISTS "Allow user to update their own profile." ON public.profiles;

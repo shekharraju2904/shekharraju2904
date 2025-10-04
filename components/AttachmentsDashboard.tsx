@@ -1,39 +1,32 @@
 import React, { useState } from 'react';
-import { Expense, Category, Status, Project, Site } from '../types';
+import { Expense, Category, Status } from '../types';
 import { DocumentArrowDownIcon } from './Icons';
+// FIX: Added supabase import to fetch attachment URLs
 import { supabase } from '../supabaseClient';
 
 interface AttachmentsDashboardProps {
   expenses: Expense[];
   categories: Category[];
-  projects: Project[];
-  sites: Site[];
 }
 
 const formatDate = (isoString: string) => {
     if (!isoString) return '';
     const date = new Date(isoString);
     const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = monthNames[date.getMonth()];
     const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    return `${day}-${month}-${year}`;
 };
 
+// FIX: Added helper function to get public URL for attachments
 const getAttachmentUrl = (path: string | null): string | null => {
     if (!path) return null;
     const { data } = supabase.storage.from('attachments').getPublicUrl(path);
     return data.publicUrl;
 };
 
-interface AttachmentInfo {
-    expense: Expense;
-    path: string;
-    url: string;
-    name: string;
-    type: string;
-}
-
-const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, categories, projects, sites }) => {
+const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, categories }) => {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,41 +34,20 @@ const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, c
   };
   
   const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || 'Unknown';
-  const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || 'Unknown';
 
-  const allAttachments = expenses.reduce((acc, expense) => {
-    const submittedDateStr = new Date(expense.submittedAt).toISOString().split('T')[0];
-    if ((dateRange.from && submittedDateStr < dateRange.from) || (dateRange.to && submittedDateStr > dateRange.to)) {
-      return acc;
-    }
+  const expensesWithAttachments = expenses.filter(expense => {
+    // FIX: Changed from `expense.attachment` to `expense.attachment_path` to match type
+    if (!expense.attachment_path) return false;
     
-    if (expense.attachment_path) {
-        const url = getAttachmentUrl(expense.attachment_path);
-        if (url) {
-            acc.push({ 
-                expense, 
-                path: expense.attachment_path, 
-                url,
-                name: expense.attachment_path.split('/').pop() || 'attachment',
-                type: 'Category' 
-            });
-        }
+    const submittedDateStr = new Date(expense.submittedAt).toISOString().split('T')[0];
+    if (dateRange.from && submittedDateStr < dateRange.from) {
+      return false;
     }
-    if (expense.subcategory_attachment_path) {
-        const url = getAttachmentUrl(expense.subcategory_attachment_path);
-        if (url) {
-            acc.push({ 
-                expense, 
-                path: expense.subcategory_attachment_path, 
-                url,
-                name: expense.subcategory_attachment_path.split('/').pop() || 'attachment',
-                type: 'Subcategory' 
-            });
-        }
+    if (dateRange.to && submittedDateStr > dateRange.to) {
+      return false;
     }
-    return acc;
-  }, [] as AttachmentInfo[]);
-
+    return true;
+  });
 
   const StatusBadge = ({ status }: { status: Status }) => {
     const baseClasses = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full';
@@ -120,7 +92,7 @@ const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, c
       
       <div className="p-6 mt-8 bg-white rounded-lg shadow">
         <div className="flow-root">
-          {allAttachments.length > 0 ? (
+          {expensesWithAttachments.length > 0 ? (
             <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
               <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -128,38 +100,43 @@ const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, c
                     <tr>
                       <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Date</th>
                       <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Requestor</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Project</th>
                       <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
                       <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Attachment Name</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Attachment For</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Attachment</th>
                       <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0"><span className="sr-only">Download</span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {allAttachments.map(({ expense, url, name, type }, index) => (
-                      <tr key={`${expense.id}-${type}-${index}`}>
-                        <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-0">{formatDate(expense.submittedAt)}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.requestorName}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getProjectName(expense.projectId)}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getCategoryName(expense.categoryId)}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{name}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{type}</td>
-                        <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
-                          <a 
-                            href={url}
-                            download
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center p-1 text-primary hover:text-primary-hover"
-                            aria-label={`Download ${name}`}
-                          >
-                            <DocumentArrowDownIcon className="w-5 h-5"/>
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
+                    {expensesWithAttachments.map((expense) => {
+                        // FIX: Get URL and name from attachment_path
+                        const attachmentUrl = getAttachmentUrl(expense.attachment_path);
+                        const attachmentName = expense.attachment_path?.split('/').pop();
+                        if (!attachmentUrl) return null;
+
+                        return (
+                          <tr key={expense.id}>
+                            <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-0">{formatDate(expense.submittedAt)}</td>
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.requestorName}</td>
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getCategoryName(expense.categoryId)}</td>
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
+                            {/* FIX: Use attachmentName derived from path */}
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{attachmentName}</td>
+                            <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
+                              <a 
+                                // FIX: Use URL from Supabase and name from path
+                                href={attachmentUrl}
+                                download={attachmentName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center p-1 text-primary hover:text-primary-hover"
+                                aria-label={`Download ${attachmentName}`}
+                              >
+                                <DocumentArrowDownIcon className="w-5 h-5"/>
+                              </a>
+                            </td>
+                          </tr>
+                        );
+                    })}
                   </tbody>
                 </table>
               </div>
