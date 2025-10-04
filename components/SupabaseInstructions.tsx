@@ -161,29 +161,26 @@ DROP POLICY IF EXISTS "Allow admins to access audit log." ON public.audit_log;
 CREATE POLICY "Allow admins to access audit log." ON public.audit_log FOR ALL USING (public.get_my_role() = 'admin');
 
 -- EXPENSES
--- FINAL FIX: By splitting the 'FOR ALL' policy into specific SELECT and INSERT policies for requestors,
--- we remove a potential conflict with the UPDATE policies for other roles and improve security
--- by preventing requestors from modifying their expenses after submission.
-DROP POLICY IF EXISTS "Allow user to manage their own expenses." ON public.expenses; -- Old catch-all
+-- FINAL FIX: The previous SELECT policies were too restrictive. When a verifier or approver updated a status,
+-- they would lose SELECT permission on the row under its new status, causing the UPDATE to fail.
+-- This new, single SELECT policy resolves the issue by allowing any user to see expenses they submitted,
+-- AND allowing any elevated role (verifier, approver, admin) to see ALL expenses. The UI and the more
+-- restrictive UPDATE policies below will still ensure users can only act on the correct expenses.
+DROP POLICY IF EXISTS "Allow user to manage their own expenses." ON public.expenses;
 DROP POLICY IF EXISTS "Allow requestor to view their own expenses." ON public.expenses;
-CREATE POLICY "Allow requestor to view their own expenses." ON public.expenses
-  FOR SELECT USING (auth.uid() = requestor_id);
+DROP POLICY IF EXISTS "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses;
+DROP POLICY IF EXISTS "Allow users to view expenses based on role." ON public.expenses;
+CREATE POLICY "Allow users to view expenses based on role." ON public.expenses FOR SELECT USING (
+    (auth.uid() = requestor_id) OR (public.get_my_role() IN ('admin', 'verifier', 'approver'))
+);
 
+-- INSERT policy remains the same and is correct.
 DROP POLICY IF EXISTS "Allow requestor to insert their own expenses." ON public.expenses;
 CREATE POLICY "Allow requestor to insert their own expenses." ON public.expenses
   FOR INSERT WITH CHECK (auth.uid() = requestor_id);
 
--- This policy allows elevated roles to see expenses in their queues. It's combined with OR
--- so users can see BOTH their own expenses and any expenses they need to action.
-DROP POLICY IF EXISTS "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses;
-CREATE POLICY "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses FOR SELECT USING (
-  (public.get_my_role() = 'verifier' AND status = 'Pending Verification') OR
-  (public.get_my_role() = 'approver' AND status = 'Pending Approval') OR
-  (public.get_my_role() = 'admin')
-);
-
--- UPDATE policies with WITH CHECK to allow valid status transitions.
-DROP POLICY IF EXISTS "Allow verifiers/approvers to update expenses." ON public.expenses; -- Old, less specific
+-- UPDATE policies remain the same; they correctly restrict actions to specific queues.
+DROP POLICY IF EXISTS "Allow verifiers/approvers to update expenses." ON public.expenses;
 DROP POLICY IF EXISTS "Allow verifiers to update expenses." ON public.expenses;
 CREATE POLICY "Allow verifiers to update expenses." ON public.expenses FOR UPDATE
 USING (public.get_my_role() = 'verifier' AND status = 'Pending Verification')
@@ -194,7 +191,7 @@ CREATE POLICY "Allow approvers to update expenses." ON public.expenses FOR UPDAT
 USING (public.get_my_role() = 'approver' AND status = 'Pending Approval')
 WITH CHECK (status IN ('Approved', 'Rejected', 'Pending Approval'));
 
--- This policy allows admins to make updates (like toggling priority) on any expense regardless of status.
+-- Admin UPDATE policy allows them to edit fields like priority.
 DROP POLICY IF EXISTS "Allow admins to update expenses." ON public.expenses;
 CREATE POLICY "Allow admins to update expenses." ON public.expenses FOR UPDATE
 USING (public.get_my_role() = 'admin')

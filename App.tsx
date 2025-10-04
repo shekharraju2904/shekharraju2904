@@ -3,6 +3,7 @@
 
 
 
+
 // FIX: Corrected the import statement for React and its hooks. The extraneous 'a,' was removed.
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
@@ -735,7 +736,7 @@ const App: React.FC = () => {
       await addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
       await fetchData();
     } catch (error) {
-      // FIX: The error object in a catch block is of type 'unknown' by default. This safely accesses the error message before displaying it.
+      // FIX: Safely handle error message from 'unknown' type.
       const message = error instanceof Error ? error.message : String(error);
       alert(`Failed to generate backup: ${message}`);
     } finally {
