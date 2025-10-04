@@ -153,9 +153,11 @@ const App: React.FC = () => {
         setAuditLog([]);
       }
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching data:", error);
-      alert(`Could not fetch data from the server: ${error.message}`);
+      // FIX: Safely handle error message from 'unknown' type.
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Could not fetch data from the server: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -264,7 +266,6 @@ const App: React.FC = () => {
       details,
     });
     if (error) console.error("Failed to add audit log:", error);
-    else await fetchData(); // refetch to update log
   };
 
   const handleAddExpense = async (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => {
@@ -278,8 +279,10 @@ const App: React.FC = () => {
         const { error } = await supabase.storage.from('attachments').upload(filePath, file);
         if (error) throw error;
         attachment_path = filePath;
-      } catch (error: any) {
-        alert(`Failed to upload attachment: ${error.message}`);
+      } catch (error) {
+        // FIX: Safely handle error message from 'unknown' type.
+        const message = error instanceof Error ? error.message : String(error);
+        alert(`Failed to upload attachment: ${message}`);
         console.error(error);
         return;
       }
@@ -293,8 +296,10 @@ const App: React.FC = () => {
         const { error } = await supabase.storage.from('attachments').upload(filePath, file);
         if (error) throw error;
         subcategory_attachment_path = filePath;
-      } catch (error: any) {
-        alert(`Failed to upload subcategory attachment: ${error.message}`);
+      } catch (error) {
+        // FIX: Safely handle error message from 'unknown' type.
+        const message = error instanceof Error ? error.message : String(error);
+        alert(`Failed to upload subcategory attachment: ${message}`);
         console.error(error);
         return;
       }
@@ -349,8 +354,10 @@ const App: React.FC = () => {
 
       const { error: insertError } = await supabase.from('expenses').insert(expenseForDb);
       if (insertError) throw insertError;
-    } catch(error: any) {
-       alert(`Failed to create expense request: ${error.message}`);
+    } catch(error) {
+       // FIX: Safely handle error message from 'unknown' type.
+       const message = error instanceof Error ? error.message : String(error);
+       alert(`Failed to create expense request: ${message}`);
        console.error(error);
        if (attachment_path) await supabase.storage.from('attachments').remove([attachment_path]);
        if (subcategory_attachment_path) await supabase.storage.from('attachments').remove([subcategory_attachment_path]);
@@ -397,38 +404,37 @@ const App: React.FC = () => {
         .from('expenses')
         .update({ status: newStatus, history: updatedHistory })
         .eq('id', expenseId)
-        .select()
-        .single();
+        .select();
 
-    if (error) {
-        alert("Failed to update status.");
-        console.error(error);
+    if (error || !data || data.length === 0) {
+        const errorMessage = error ? error.message : "The expense could not be updated. It might have been processed by another user. Please refresh.";
+        alert(`Failed to update status: ${errorMessage}`);
+        console.error("Update failed. Error:", error, "Data:", data);
+        await fetchData(); // Refresh data to show the user the current state
         return;
     }
-
-    // Create a map of user names for efficient lookup
+    
+    const updatedDbExpense = data[0];
     const userMap = new Map(users.map(u => [u.id, u.name]));
-    // Map the returned DB expense to the app's Expense type
     const updatedExpense: Expense = {
-        id: data.id,
-        referenceNumber: data.reference_number,
-        requestorId: data.requestor_id,
-        requestorName: userMap.get(data.requestor_id) || 'Unknown User',
-        categoryId: data.category_id,
-        subcategoryId: data.subcategory_id,
-        amount: data.amount,
-        description: data.description,
-        projectId: data.project_id,
-        siteId: data.site_id,
-        submittedAt: data.submitted_at,
-        status: data.status,
-        isHighPriority: data.is_high_priority,
-        attachment_path: data.attachment_path,
-        subcategory_attachment_path: data.subcategory_attachment_path,
-        history: data.history,
+        id: updatedDbExpense.id,
+        referenceNumber: updatedDbExpense.reference_number,
+        requestorId: updatedDbExpense.requestor_id,
+        requestorName: userMap.get(updatedDbExpense.requestor_id) || 'Unknown User',
+        categoryId: updatedDbExpense.category_id,
+        subcategoryId: updatedDbExpense.subcategory_id,
+        amount: updatedDbExpense.amount,
+        description: updatedDbExpense.description,
+        projectId: updatedDbExpense.project_id,
+        siteId: updatedDbExpense.site_id,
+        submittedAt: updatedDbExpense.submitted_at,
+        status: updatedDbExpense.status,
+        isHighPriority: updatedDbExpense.is_high_priority,
+        attachment_path: updatedDbExpense.attachment_path,
+        subcategory_attachment_path: updatedDbExpense.subcategory_attachment_path,
+        history: updatedDbExpense.history,
     };
 
-    // Update the local state with the confirmed data from the server
     setExpenses(prev => prev.map(e => e.id === expenseId ? updatedExpense : e));
 
     const requestor = users.find(u => u.id === updatedExpense.requestorId);
@@ -493,13 +499,22 @@ const App: React.FC = () => {
 };
 
    const handleBulkUpdateExpenseStatus = async (expenseIds: string[], newStatus: Status, comment?: string) => {
-    if (!currentUser) return;
+    if (!currentUser || expenseIds.length === 0) return;
 
-    const updatePromises = expenseIds.map(expenseId => {
-        const expenseToUpdate = expenses.find(e => e.id === expenseId);
-        if (!expenseToUpdate) {
-            console.warn(`Expense with ID ${expenseId} not found in local state for bulk update.`);
-            return Promise.resolve({ error: { message: "Expense not found" } });
+    setLoading(true);
+
+    const updatesWithHistory = expenseIds.map(id => {
+        const expense = expenses.find(e => e.id === id);
+        if (!expense) {
+            return { id, error: `Expense with ID ${id} not found in local data.` };
+        }
+        
+        const canVerify = currentUser.role === Role.VERIFIER && expense.status === Status.PENDING_VERIFICATION;
+        const canApprove = currentUser.role === Role.APPROVER && expense.status === Status.PENDING_APPROVAL;
+        const isActionAllowed = (newStatus === Status.PENDING_APPROVAL && canVerify) || (newStatus === Status.APPROVED && canApprove) || (newStatus === Status.REJECTED && (canVerify || canApprove));
+
+        if (!isActionAllowed) {
+            return { id, error: `You do not have permission to update expense ${expense.referenceNumber} from its current state of '${expense.status}'.` };
         }
 
         let action = '';
@@ -515,33 +530,51 @@ const App: React.FC = () => {
             comment
         };
 
-        const updatedHistory = [...expenseToUpdate.history, newHistoryItem];
-
-        return supabase
-            .from('expenses')
-            .update({ status: newStatus, history: updatedHistory })
-            .eq('id', expenseId);
+        const updatedHistory = [...expense.history, newHistoryItem];
+        return { id, updatePayload: { status: newStatus, history: updatedHistory }, error: null };
     });
+
+    const validUpdates = updatesWithHistory.filter(u => !u.error);
+    const clientSideErrors = updatesWithHistory.filter(u => u.error);
+
+    const updatePromises = validUpdates.map(update => 
+        supabase
+            .from('expenses')
+            .update(update.updatePayload!)
+            .eq('id', update.id)
+    );
 
     try {
         const results = await Promise.all(updatePromises);
-        const failedUpdates = results.filter(result => result && result.error);
-
-        if (failedUpdates.length > 0) {
-            console.error('Bulk update failed for some items:', failedUpdates);
-            alert(`Failed to update ${failedUpdates.length} of ${expenseIds.length} expenses. Please refresh and try again.`);
-        }
+        const serverSideErrors = results.filter(result => result.error);
+        
+        const totalFailures = clientSideErrors.length + serverSideErrors.length;
+        const successCount = expenseIds.length - totalFailures;
         
         let actionVerb = '';
         if (newStatus === Status.PENDING_APPROVAL) actionVerb = 'Verified';
         else if (newStatus === Status.APPROVED) actionVerb = 'Approved';
         else if (newStatus === Status.REJECTED) actionVerb = 'Rejected';
+
+        if (successCount > 0) {
+            alert(`Successfully ${actionVerb.toLowerCase()} ${successCount} expense(s).`);
+        }
         
-        await addAuditLogEntry('Bulk Expense Update', `Bulk action: ${actionVerb} ${expenseIds.length} expense(s). Success: ${expenseIds.length - failedUpdates.length}, Failed: ${failedUpdates.length}.`);
+        if (totalFailures > 0) {
+            console.error('Client-side validation failures:', clientSideErrors.map(e => e.error));
+            console.error('Server-side update failures:', serverSideErrors.map(e => e.error?.message));
+            alert(`Failed to update ${totalFailures} of ${expenseIds.length} expense(s). Some items may have already been processed or you may lack permission. The view will now refresh.`);
+        }
+        
+        if (expenseIds.length > 0) {
+            await addAuditLogEntry('Bulk Expense Update', `Bulk action: ${actionVerb} ${expenseIds.length} expense(s). Success: ${successCount}, Failed: ${totalFailures}.`);
+        }
 
     } catch (error) {
         console.error('Error during bulk update execution:', error);
         alert('An unexpected error occurred during the bulk update. Please check the console and refresh.');
+    } finally {
+        await fetchData();
     }
   };
 
@@ -563,7 +596,7 @@ const App: React.FC = () => {
       alert(errorMessage);
     }
     else {
-      addAuditLogEntry('User Updated', `Updated profile for user '${updatedUser.username}'.`);
+      await addAuditLogEntry('User Updated', `Updated profile for user '${updatedUser.username}'.`);
       await fetchData();
     }
   };
@@ -584,7 +617,7 @@ const App: React.FC = () => {
         }
         alert(errorMessage);
     } else {
-        addAuditLogEntry('User Status Changed', `Set user '${userToUpdate.name}' status to ${newStatus}.`);
+        await addAuditLogEntry('User Status Changed', `Set user '${userToUpdate.name}' status to ${newStatus}.`);
         await fetchData();
     }
   };
@@ -599,7 +632,8 @@ const App: React.FC = () => {
         console.error(error);
     } else {
         alert(`Password reset link sent successfully to ${userEmail}.`);
-        addAuditLogEntry('User Password Reset', `Sent password reset link to '${userName}'.`);
+        await addAuditLogEntry('User Password Reset', `Sent password reset link to '${userName}'.`);
+        await fetchData();
     }
   };
   
@@ -609,7 +643,7 @@ const App: React.FC = () => {
       console.error(errorMessage, error);
       alert(`${errorMessage}: ${error.message}`);
     } else {
-      addAuditLogEntry('Configuration Change', successMessage);
+      await addAuditLogEntry('Configuration Change', successMessage);
       await fetchData();
     }
   };
@@ -638,7 +672,7 @@ const App: React.FC = () => {
     if(error) console.error(error);
     else {
       const action = newPriority ? 'Marked as High Priority' : 'Removed High Priority';
-      addAuditLogEntry('Expense Priority Changed', `${action} for expense '${expenseToUpdate.referenceNumber}'.`);
+      await addAuditLogEntry('Expense Priority Changed', `${action} for expense '${expenseToUpdate.referenceNumber}'.`);
       await fetchData();
     }
   };
@@ -695,7 +729,8 @@ const App: React.FC = () => {
       const admins = users.data?.filter(u => u.role === Role.ADMIN).map(mapDbUserToAppUser) || [];
       Notifications.sendBackupEmail(admins, JSON.stringify(backupData, null, 2));
       alert("Backup generated and sent to all administrators successfully.");
-      addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
+      await addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
+      await fetchData();
     } catch (error) {
       // FIX: The error object in a catch block is of type 'unknown' by default. This safely accesses the error message before displaying it.
       const message = error instanceof Error ? error.message : String(error);
