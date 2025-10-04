@@ -64,6 +64,20 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
     details text
 );
 
+-- 1.5 Add soft delete columns to expenses table if they don't exist (for migrations)
+DO $$
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'deleted_at') THEN
+    ALTER TABLE public.expenses ADD COLUMN deleted_at timestamp with time zone;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'deleted_by') THEN
+    ALTER TABLE public.expenses ADD COLUMN deleted_by uuid REFERENCES public.profiles(id);
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'status_before_delete') THEN
+    ALTER TABLE public.expenses ADD COLUMN status_before_delete text;
+  END IF;
+END $$;
+
 -- 2. Create the function to auto-create user profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
