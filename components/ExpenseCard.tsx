@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { Expense, Status, Role } from '../types';
-import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon } from './Icons';
-// FIX: Added supabase import to fetch attachment URLs
+import { Expense, Status, Role, User, Category, Project, Site } from '../types';
+import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon, StarIcon } from './Icons';
 import { supabase } from '../supabaseClient';
 
 interface ExpenseCardProps {
   expense: Expense;
-  categoryName: string;
-  userRole?: Role;
+  categories: Category[];
+  projects: Project[];
+  sites: Site[];
+  userRole: Role;
+  currentUser: User;
   onUpdateStatus?: (newStatus: Status, comment?: string) => void;
+  onAddComment: (expenseId: string, comment: string) => void;
+  onToggleExpensePriority: (expenseId: string) => void;
   onClose?: () => void;
 }
 
@@ -27,21 +31,22 @@ const formatDateTime = (isoString: string) => {
     const date = new Date(isoString);
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    return `${formatDate(isoString)} ${hours}:${minutes}:${seconds}`;
+    return `${formatDate(isoString)} ${hours}:${minutes}`;
 };
 
-// FIX: Added helper function to get public URL for attachments
 const getAttachmentUrl = (path: string | null): string | null => {
     if (!path) return null;
     const { data } = supabase.storage.from('attachments').getPublicUrl(path);
     return data.publicUrl;
 };
 
-
-const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categoryName, userRole, onUpdateStatus, onClose }) => {
+const ExpenseCard: React.FC<ExpenseCardProps> = ({ 
+    expense, categories, projects, sites, userRole, currentUser,
+    onUpdateStatus, onAddComment, onToggleExpensePriority, onClose 
+}) => {
     const [rejectionComment, setRejectionComment] = useState('');
     const [showRejectionInput, setShowRejectionInput] = useState(false);
+    const [newComment, setNewComment] = useState('');
     const [showHistory, setShowHistory] = useState(true);
 
     const handleApprove = () => {
@@ -60,6 +65,14 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categoryName, userRo
         }
     };
 
+    const handleAddComment = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newComment.trim()) {
+            onAddComment(expense.id, newComment);
+            setNewComment('');
+        }
+    };
+
     const handlePrint = () => {
         window.print();
     };
@@ -67,65 +80,111 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categoryName, userRo
     const canTakeAction = (userRole === Role.VERIFIER && expense.status === Status.PENDING_VERIFICATION) ||
                           (userRole === Role.APPROVER && expense.status === Status.PENDING_APPROVAL);
 
-    // FIX: Changed from `expense.attachment` to `expense.attachment_path` and derive URL and name.
+    const canTogglePriority = [Role.ADMIN, Role.VERIFIER, Role.APPROVER].includes(userRole);
+
+    const category = categories.find(c => c.id === expense.categoryId);
+    const subcategory = category?.subcategories?.find(sc => sc.id === expense.subcategoryId);
+    const projectName = projects.find(p => p.id === expense.projectId)?.name || 'N/A';
+    const siteName = sites.find(s => s.id === expense.siteId)?.name || 'N/A';
+    const categoryDisplayName = `${category?.name || 'Unknown'}${subcategory ? ` / ${subcategory.name}` : ''}`;
+
     const attachmentUrl = getAttachmentUrl(expense.attachment_path);
-    const attachmentName = expense.attachment_path?.split('/').pop();
+    const attachmentName = expense.attachment_path?.split('/').pop()?.substring(14); // Clean up timestamp prefix for display
+    
+    const subAttachmentUrl = getAttachmentUrl(expense.subcategory_attachment_path);
+    const subAttachmentName = expense.subcategory_attachment_path?.split('/').pop()?.substring(18); // Clean up timestamp prefix
 
     return (
         <div className="space-y-4">
             <div className="flex items-start justify-between">
                 <div>
-                    <h4 className="font-medium text-gray-800">Requestor: <span className="font-normal text-gray-600">{expense.requestorName}</span></h4>
-                    <h4 className="font-medium text-gray-800">Category: <span className="font-normal text-gray-600">{categoryName}</span></h4>
-                    <h4 className="font-medium text-gray-800">Amount: <span className="font-normal text-gray-600">₹{expense.amount.toLocaleString('en-IN')}</span></h4>
-                    <h4 className="font-medium text-gray-800">Submitted: <span className="font-normal text-gray-600">{formatDateTime(expense.submittedAt)}</span></h4>
-                </div>
-                <div className="pl-4 text-right">
-                    <p className="text-sm font-semibold text-gray-500">Reference #</p>
                     <p className="font-mono text-gray-800">{expense.referenceNumber}</p>
+                    <p className="text-sm text-gray-500">Submitted on {formatDateTime(expense.submittedAt)}</p>
                 </div>
+                {canTogglePriority && (
+                     <button onClick={() => onToggleExpensePriority(expense.id)} className={`p-1 rounded-full ${expense.isHighPriority ? 'text-amber-500 bg-amber-100' : 'text-gray-400 hover:bg-gray-100'}`} title={expense.isHighPriority ? "Remove High Priority" : "Mark as High Priority"}>
+                        <StarIcon filled={expense.isHighPriority} className="w-5 h-5" />
+                    </button>
+                )}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div className="font-medium text-gray-500">Requestor</div>
+                <div className="text-gray-800">{expense.requestorName}</div>
+                
+                <div className="font-medium text-gray-500">Amount</div>
+                <div className="font-semibold text-gray-900">₹{expense.amount.toLocaleString('en-IN')}</div>
+
+                <div className="font-medium text-gray-500">Project</div>
+                <div className="text-gray-800">{projectName}</div>
+
+                <div className="font-medium text-gray-500">Site/Place</div>
+                <div className="text-gray-800">{siteName}</div>
+
+                <div className="font-medium text-gray-500">Category</div>
+                <div className="text-gray-800">{categoryDisplayName}</div>
             </div>
 
             <div className="p-3 bg-gray-50 rounded-md">
                 <p className="text-sm font-medium text-gray-800">Description</p>
-                <p className="mt-1 text-sm text-gray-600">{expense.description}</p>
+                <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{expense.description}</p>
             </div>
             
-            {/* FIX: Replaced attachment logic to use URL from Supabase storage. */}
-            {attachmentUrl && (
-                <div className="p-3 border rounded-md">
-                     <a 
-                        href={attachmentUrl} 
-                        download={attachmentName}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary hover:bg-primary-hover"
-                    >
-                        <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-                        Download ({attachmentName})
-                    </a>
+            {(attachmentUrl || subAttachmentUrl) && (
+                <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-800">Attachments</p>
+                     <div className="flex flex-col space-y-2">
+                        {attachmentUrl && (
+                            <a href={attachmentUrl} download={attachmentName} target="_blank" rel="noopener noreferrer" className="inline-flex items-center p-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                <PaperClipIcon className="w-4 h-4 mr-2" />
+                                <span className="truncate">{attachmentName || 'Category Attachment'}</span>
+                            </a>
+                        )}
+                        {subAttachmentUrl && (
+                             <a href={subAttachmentUrl} download={subAttachmentName} target="_blank" rel="noopener noreferrer" className="inline-flex items-center p-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                <PaperClipIcon className="w-4 h-4 mr-2" />
+                                <span className="truncate">{subAttachmentName || 'Subcategory Attachment'}</span>
+                            </a>
+                        )}
+                     </div>
                 </div>
             )}
             
              <div>
                 <button onClick={() => setShowHistory(!showHistory)} className="flex items-center justify-between w-full text-sm font-medium text-left text-gray-600 hover:text-gray-900">
-                    <span>Approval History</span>
+                    <span>Approval History & Comments</span>
                     <ChevronDownIcon className={`w-5 h-5 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
                 </button>
                 {showHistory && (
-                    <div className="mt-2 space-y-2 border-l-2 border-gray-200 pl-4">
+                    <div className="mt-2 space-y-3 border-l-2 border-gray-200 pl-4">
                         {expense.history.map((item, index) => (
                             <div key={index}>
                                 <p className="text-sm font-medium text-gray-800">{item.action} by {item.actorName}</p>
                                 <p className="text-xs text-gray-500">{formatDateTime(item.timestamp)}</p>
-                                {item.comment && <p className="pl-2 mt-1 text-xs italic text-gray-600 border-l-2 border-gray-300">"{item.comment}"</p>}
+                                {item.comment && <p className="pl-2 mt-1 text-sm italic text-gray-600 border-l-2 border-gray-300">"{item.comment}"</p>}
                             </div>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Action buttons footer */}
+            <div className="pt-4 border-t no-print">
+                <form onSubmit={handleAddComment}>
+                    <label htmlFor="add-comment" className="block text-sm font-medium text-gray-700">Add a Comment</label>
+                    <div className="flex mt-1 space-x-2">
+                        <textarea
+                            id="add-comment"
+                            rows={2}
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                            placeholder="Type your comment here..."
+                        ></textarea>
+                         <button type="submit" className="px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary hover:bg-primary-hover">Send</button>
+                    </div>
+                </form>
+            </div>
+
             <div className="pt-4 mt-4 border-t no-print">
                  <div className="flex items-center">
                     <button
