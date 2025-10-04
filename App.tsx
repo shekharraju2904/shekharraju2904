@@ -1,3 +1,4 @@
+
 // FIX: Corrected the import statement for React and its hooks. The extraneous 'a,' was removed.
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
@@ -372,10 +373,10 @@ const App: React.FC = () => {
 
   const handleUpdateExpenseStatus = async (expenseId: string, newStatus: Status, comment?: string) => {
     if (!currentUser) return;
-    
+
     const expenseToUpdate = expenses.find(e => e.id === expenseId);
     if (!expenseToUpdate) return;
-    
+
     let action = '';
     if (newStatus === Status.PENDING_APPROVAL) action = 'Verified';
     else if (newStatus === Status.APPROVED) action = 'Approved';
@@ -388,29 +389,56 @@ const App: React.FC = () => {
         timestamp: new Date().toISOString(),
         comment
     };
-    
+
     const updatedHistory = [...expenseToUpdate.history, newHistoryItem];
 
-    const { error } = await supabase.from('expenses').update({ status: newStatus, history: updatedHistory }).eq('id', expenseId);
+    const { data, error } = await supabase
+        .from('expenses')
+        .update({ status: newStatus, history: updatedHistory })
+        .eq('id', expenseId)
+        .select()
+        .single();
 
     if (error) {
-      alert("Failed to update status.");
-      console.error(error);
-      return;
+        alert("Failed to update status.");
+        console.error(error);
+        return;
     }
 
-    const updatedExpense = { ...expenseToUpdate, status: newStatus, history: updatedHistory };
+    // Create a map of user names for efficient lookup
+    const userMap = new Map(users.map(u => [u.id, u.name]));
+    // Map the returned DB expense to the app's Expense type
+    const updatedExpense: Expense = {
+        id: data.id,
+        referenceNumber: data.reference_number,
+        requestorId: data.requestor_id,
+        requestorName: userMap.get(data.requestor_id) || 'Unknown User',
+        categoryId: data.category_id,
+        subcategoryId: data.subcategory_id,
+        amount: data.amount,
+        description: data.description,
+        projectId: data.project_id,
+        siteId: data.site_id,
+        submittedAt: data.submitted_at,
+        status: data.status,
+        isHighPriority: data.is_high_priority,
+        attachment_path: data.attachment_path,
+        subcategory_attachment_path: data.subcategory_attachment_path,
+        history: data.history,
+    };
+
+    // Update the local state with the confirmed data from the server
     setExpenses(prev => prev.map(e => e.id === expenseId ? updatedExpense : e));
 
-    const requestor = users.find(u => u.id === expenseToUpdate.requestorId);
-    const category = categories.find(c => c.id === expenseToUpdate.categoryId);
-    const subcategory = category?.subcategories?.find(sc => sc.id === expenseToUpdate.subcategoryId);
-    const projectName = projects.find(p => p.id === expenseToUpdate.projectId)?.name || 'N/A';
-    const siteName = sites.find(s => s.id === expenseToUpdate.siteId)?.name || 'N/A';
+    const requestor = users.find(u => u.id === updatedExpense.requestorId);
+    const category = categories.find(c => c.id === updatedExpense.categoryId);
+    const subcategory = category?.subcategories?.find(sc => sc.id === updatedExpense.subcategoryId);
+    const projectName = projects.find(p => p.id === updatedExpense.projectId)?.name || 'N/A';
+    const siteName = sites.find(s => s.id === updatedExpense.siteId)?.name || 'N/A';
 
     if (requestor && category) {
         Notifications.notifyOnStatusChange(requestor, updatedExpense, category.name, subcategory?.name, projectName, siteName, comment);
-        
+
         if (currentUser.role === Role.VERIFIER && newStatus === Status.PENDING_APPROVAL) {
             const approvers = users.filter(u => u.role === Role.APPROVER);
             Notifications.notifyApproversOnVerification(approvers, updatedExpense, category.name, subcategory?.name, projectName, siteName);
@@ -426,7 +454,7 @@ const App: React.FC = () => {
             }
         }
     }
-  };
+};
 
   const handleAddExpenseComment = async (expenseId: string, comment: string) => {
     if (!currentUser || !comment.trim()) return;
@@ -625,8 +653,10 @@ const App: React.FC = () => {
       Notifications.sendBackupEmail(admins, JSON.stringify(backupData, null, 2));
       alert("Backup generated and sent to all administrators successfully.");
       addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
-    } catch (error: any) {
-      alert(`Failed to generate backup: ${error.message}`);
+    // FIX: Changed catch block to safely handle 'unknown' error type, which is the default for catch variables.
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Failed to generate backup: ${message}`);
     } finally {
       setLoading(false);
     }
