@@ -162,7 +162,7 @@ const App: React.FC = () => {
 
     } catch (error) {
       console.error("Error fetching data:", error);
-      const message = error instanceof Error ? error.message : String(error);
+      const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
       alert(`Could not fetch data from the server: ${message}`);
     } finally {
       setLoading(false);
@@ -283,7 +283,7 @@ const App: React.FC = () => {
         if (error) throw error;
         attachment_path = filePath;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
         alert(`Failed to upload attachment: ${message}`);
         console.error(error);
         return;
@@ -299,7 +299,7 @@ const App: React.FC = () => {
         if (error) throw error;
         subcategory_attachment_path = filePath;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
         alert(`Failed to upload subcategory attachment: ${message}`);
         console.error(error);
         return;
@@ -356,7 +356,7 @@ const App: React.FC = () => {
       const { error: insertError } = await supabase.from('expenses').insert(expenseForDb);
       if (insertError) throw insertError;
     } catch(error) {
-       const message = error instanceof Error ? error.message : String(error);
+       const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
        alert(`Failed to create expense request: ${message}`);
        console.error(error);
        if (attachment_path) await supabase.storage.from('attachments').remove([attachment_path]);
@@ -713,7 +713,7 @@ const App: React.FC = () => {
       await addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
       await fetchData();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
       alert(`Failed to generate backup: ${message}`);
     } finally {
       setLoading(false);
@@ -755,7 +755,7 @@ const App: React.FC = () => {
         await fetchData();
 
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
         alert(`Failed to move expense to Recycle Bin: ${message}`);
     } finally {
         setLoading(false);
@@ -791,7 +791,7 @@ const App: React.FC = () => {
           alert("Expense restored successfully.");
           await fetchData();
       } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
           alert(`Failed to restore expense: ${message}`);
       } finally {
           setLoading(false);
@@ -833,7 +833,7 @@ const App: React.FC = () => {
         await fetchData();
 
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
         alert(`Failed to permanently delete expense: ${message}`);
     } finally {
         setLoading(false);
