@@ -464,17 +464,38 @@ const App: React.FC = () => {
         console.error(error);
     } else {
         await fetchData(); 
+        
+        // Refetch the specific expense from the updated state to ensure we have the latest data
+        const updatedExpense = expenses.find(e => e.id === expenseId);
+        if (!updatedExpense) return; // Should not happen, but good practice
+
         const participants = new Map<string, User>();
-        participants.set(expenseToUpdate.requestorId, users.find(u => u.id === expenseToUpdate.requestorId)!);
-        expenseToUpdate.history.forEach(h => {
+        
+        // 1. Add requestor
+        const requestor = users.find(u => u.id === updatedExpense.requestorId);
+        if (requestor) {
+            participants.set(requestor.id, requestor);
+        }
+        
+        // 2. Add everyone from the expense's history
+        updatedExpense.history.forEach(h => {
           if (h.actorId !== 'system') {
             const user = users.find(u => u.id === h.actorId);
             if (user) participants.set(user.id, user);
           }
         });
         
+        // 3. Add actors who are next in the workflow
+        if (updatedExpense.status === Status.PENDING_VERIFICATION) {
+            users.filter(u => u.role === Role.VERIFIER).forEach(v => participants.set(v.id, v));
+        } else if (updatedExpense.status === Status.PENDING_APPROVAL) {
+            users.filter(u => u.role === Role.APPROVER).forEach(a => participants.set(a.id, a));
+        }
+        
+        // 4. Filter out the current user (commenter) to create the final recipients list
         const recipients = Array.from(participants.values()).filter(u => u.id !== currentUser.id);
-        const updatedExpense = { ...expenseToUpdate, history: updatedHistory };
+        
+        // 5. Send notifications
         Notifications.notifyOnNewComment(recipients, currentUser, updatedExpense, comment);
     }
 };
