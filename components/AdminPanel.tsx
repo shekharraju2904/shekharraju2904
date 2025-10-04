@@ -32,7 +32,7 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
-  users, categories, projects, sites, auditLog,
+  users, categories, projects, sites, expenses, auditLog,
   onAddUser, onUpdateUser, onToggleUserStatus, onResetUserPassword,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
@@ -158,6 +158,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
     setSiteModalOpen(false);
     setEditingSite(null);
+  };
+
+  const handleDeleteCategory = (category: Category) => {
+      const isUsed = expenses.some(e => e.categoryId === category.id);
+      if (isUsed) {
+          alert(`Cannot delete category "${category.name}". It is associated with existing expenses. Please reassign or remove them first.`);
+          return;
+      }
+      if (window.confirm(`Are you sure you want to delete the category "${category.name}" and all its subcategories? This cannot be undone.`)) {
+          onDeleteCategory(category.id);
+      }
+  };
+
+  const handleDeleteProject = (project: Project) => {
+      const isUsed = expenses.some(e => e.projectId === project.id);
+      if (isUsed) {
+          alert(`Cannot delete project "${project.name}". It is associated with existing expenses. Please reassign or remove them first.`);
+          return;
+      }
+      if (window.confirm(`Are you sure you want to delete the project "${project.name}"? This cannot be undone.`)) {
+          onDeleteProject(project.id);
+      }
+  };
+
+  const handleDeleteSite = (site: Site) => {
+      const isUsed = expenses.some(e => e.siteId === site.id);
+      if (isUsed) {
+          alert(`Cannot delete site "${site.name}". It is associated with existing expenses. Please reassign or remove them first.`);
+          return;
+      }
+      if (window.confirm(`Are you sure you want to delete the site "${site.name}"? This cannot be undone.`)) {
+          onDeleteSite(site.id);
+      }
   };
 
   const formatDateTime = (isoString: string) => {
@@ -287,7 +320,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                             <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{cat.autoApproveAmount.toLocaleString('en-IN')}</td>
                                             <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
                                                 <button onClick={() => handleOpenCategoryModal(cat)} className="text-primary hover:text-primary-hover"><PencilIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => onDeleteCategory(cat.id)} className="ml-4 text-red-600 hover:text-red-800"><TrashIcon className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeleteCategory(cat)} className="ml-4 text-red-600 hover:text-red-800"><TrashIcon className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
                                     ))}
@@ -379,7 +412,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                             <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-6">{project.name}</td>
                                             <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
                                                 <button onClick={() => handleOpenProjectModal(project)} className="text-primary hover:text-primary-hover"><PencilIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => onDeleteProject(project.id)} className="ml-4 text-red-600 hover:text-red-800"><TrashIcon className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeleteProject(project)} className="ml-4 text-red-600 hover:text-red-800"><TrashIcon className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
                                     ))}
@@ -422,7 +455,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                             <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-6">{site.name}</td>
                                             <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-6">
                                                 <button onClick={() => handleOpenSiteModal(site)} className="text-primary hover:text-primary-hover"><PencilIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => onDeleteSite(site.id)} className="ml-4 text-red-600 hover:text-red-800"><TrashIcon className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeleteSite(site)} className="ml-4 text-red-600 hover:text-red-800"><TrashIcon className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
                                     ))}

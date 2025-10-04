@@ -40,6 +40,16 @@ const getAttachmentUrl = (path: string | null): string | null => {
     return data.publicUrl;
 };
 
+const cleanFileName = (path: string | null | undefined): string | undefined => {
+    if (!path) return undefined;
+    const parts = path.split('/');
+    const fullName = parts[parts.length - 1];
+    const underscoreIndex = fullName.indexOf('_');
+    if (underscoreIndex === -1) return fullName; // Fallback if format is unexpected
+    return fullName.substring(underscoreIndex + 1);
+};
+
+
 const ExpenseCard: React.FC<ExpenseCardProps> = ({ 
     expense, categories, projects, sites, userRole, currentUser,
     onUpdateStatus, onAddComment, onToggleExpensePriority, onClose 
@@ -89,10 +99,10 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
     const categoryDisplayName = `${category?.name || 'Unknown'}${subcategory ? ` / ${subcategory.name}` : ''}`;
 
     const attachmentUrl = getAttachmentUrl(expense.attachment_path);
-    const attachmentName = expense.attachment_path?.split('/').pop()?.substring(14); // Clean up timestamp prefix for display
+    const attachmentName = cleanFileName(expense.attachment_path);
     
     const subAttachmentUrl = getAttachmentUrl(expense.subcategory_attachment_path);
-    const subAttachmentName = expense.subcategory_attachment_path?.split('/').pop()?.substring(18); // Clean up timestamp prefix
+    const subAttachmentName = cleanFileName(expense.subcategory_attachment_path);
 
     return (
         <div className="space-y-4">

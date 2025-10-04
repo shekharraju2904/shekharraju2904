@@ -1,4 +1,5 @@
 
+
 // FIX: Corrected the import statement for React and its hooks. The extraneous 'a,' was removed.
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
@@ -492,14 +493,56 @@ const App: React.FC = () => {
 };
 
    const handleBulkUpdateExpenseStatus = async (expenseIds: string[], newStatus: Status, comment?: string) => {
-    for (const id of expenseIds) {
-        await handleUpdateExpenseStatus(id, newStatus, comment);
+    if (!currentUser) return;
+
+    const updatePromises = expenseIds.map(expenseId => {
+        const expenseToUpdate = expenses.find(e => e.id === expenseId);
+        if (!expenseToUpdate) {
+            console.warn(`Expense with ID ${expenseId} not found in local state for bulk update.`);
+            return Promise.resolve({ error: { message: "Expense not found" } });
+        }
+
+        let action = '';
+        if (newStatus === Status.PENDING_APPROVAL) action = 'Verified';
+        else if (newStatus === Status.APPROVED) action = 'Approved';
+        else if (newStatus === Status.REJECTED) action = 'Rejected';
+
+        const newHistoryItem = {
+            actorId: currentUser.id,
+            actorName: currentUser.name,
+            action,
+            timestamp: new Date().toISOString(),
+            comment
+        };
+
+        const updatedHistory = [...expenseToUpdate.history, newHistoryItem];
+
+        return supabase
+            .from('expenses')
+            .update({ status: newStatus, history: updatedHistory })
+            .eq('id', expenseId);
+    });
+
+    try {
+        const results = await Promise.all(updatePromises);
+        const failedUpdates = results.filter(result => result && result.error);
+
+        if (failedUpdates.length > 0) {
+            console.error('Bulk update failed for some items:', failedUpdates);
+            alert(`Failed to update ${failedUpdates.length} of ${expenseIds.length} expenses. Please refresh and try again.`);
+        }
+        
+        let actionVerb = '';
+        if (newStatus === Status.PENDING_APPROVAL) actionVerb = 'Verified';
+        else if (newStatus === Status.APPROVED) actionVerb = 'Approved';
+        else if (newStatus === Status.REJECTED) actionVerb = 'Rejected';
+        
+        await addAuditLogEntry('Bulk Expense Update', `Bulk action: ${actionVerb} ${expenseIds.length} expense(s). Success: ${expenseIds.length - failedUpdates.length}, Failed: ${failedUpdates.length}.`);
+
+    } catch (error) {
+        console.error('Error during bulk update execution:', error);
+        alert('An unexpected error occurred during the bulk update. Please check the console and refresh.');
     }
-    let actionVerb = '';
-    if (newStatus === Status.PENDING_APPROVAL) actionVerb = 'Verified';
-    else if (newStatus === Status.APPROVED) actionVerb = 'Approved';
-    else if (newStatus === Status.REJECTED) actionVerb = 'Rejected';
-    addAuditLogEntry('Bulk Expense Update', `Bulk action: ${actionVerb} ${expenseIds.length} expense(s).`);
   };
 
   const handleUpdateUser = async (updatedUser: User) => {
@@ -653,8 +696,8 @@ const App: React.FC = () => {
       Notifications.sendBackupEmail(admins, JSON.stringify(backupData, null, 2));
       alert("Backup generated and sent to all administrators successfully.");
       addAuditLogEntry('System Backup', 'Triggered a manual system backup via email.');
-    // FIX: Changed catch block to safely handle 'unknown' error type, which is the default for catch variables.
     } catch (error) {
+      // FIX: The error object in a catch block is of type 'unknown' by default. This safely accesses the error message before displaying it.
       const message = error instanceof Error ? error.message : String(error);
       alert(`Failed to generate backup: ${message}`);
     } finally {
