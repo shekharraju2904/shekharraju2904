@@ -159,9 +159,22 @@ CREATE POLICY "Allow admins to manage config." ON public.sites FOR ALL USING (pu
 -- AUDIT LOG
 DROP POLICY IF EXISTS "Allow admins to access audit log." ON public.audit_log;
 CREATE POLICY "Allow admins to access audit log." ON public.audit_log FOR ALL USING (public.get_my_role() = 'admin');
+
 -- EXPENSES
-DROP POLICY IF EXISTS "Allow user to manage their own expenses." ON public.expenses;
-CREATE POLICY "Allow user to manage their own expenses." ON public.expenses FOR ALL USING (auth.uid() = requestor_id);
+-- FINAL FIX: By splitting the 'FOR ALL' policy into specific SELECT and INSERT policies for requestors,
+-- we remove a potential conflict with the UPDATE policies for other roles and improve security
+-- by preventing requestors from modifying their expenses after submission.
+DROP POLICY IF EXISTS "Allow user to manage their own expenses." ON public.expenses; -- Old catch-all
+DROP POLICY IF EXISTS "Allow requestor to view their own expenses." ON public.expenses;
+CREATE POLICY "Allow requestor to view their own expenses." ON public.expenses
+  FOR SELECT USING (auth.uid() = requestor_id);
+
+DROP POLICY IF EXISTS "Allow requestor to insert their own expenses." ON public.expenses;
+CREATE POLICY "Allow requestor to insert their own expenses." ON public.expenses
+  FOR INSERT WITH CHECK (auth.uid() = requestor_id);
+
+-- This policy allows elevated roles to see expenses in their queues. It's combined with OR
+-- so users can see BOTH their own expenses and any expenses they need to action.
 DROP POLICY IF EXISTS "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses;
 CREATE POLICY "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses FOR SELECT USING (
   (public.get_my_role() = 'verifier' AND status = 'Pending Verification') OR
@@ -169,10 +182,8 @@ CREATE POLICY "Allow verifiers/approvers/admins to see relevant expenses." ON pu
   (public.get_my_role() = 'admin')
 );
 
--- FIX: The original combined update policy failed when a status was changed, because the new row state
--- would violate the policy. These policies separate the logic for verifiers and approvers and use
--- WITH CHECK to allow valid status transitions, including keeping the same status (for priority changes).
-DROP POLICY IF EXISTS "Allow verifiers/approvers to update expenses." ON public.expenses;
+-- UPDATE policies with WITH CHECK to allow valid status transitions.
+DROP POLICY IF EXISTS "Allow verifiers/approvers to update expenses." ON public.expenses; -- Old, less specific
 DROP POLICY IF EXISTS "Allow verifiers to update expenses." ON public.expenses;
 CREATE POLICY "Allow verifiers to update expenses." ON public.expenses FOR UPDATE
 USING (public.get_my_role() = 'verifier' AND status = 'Pending Verification')
