@@ -53,13 +53,13 @@ const App: React.FC = () => {
     setLoading(true);
 
     try {
+      // FIX: The original query used a join that can fail if the schema relationship isn't detected.
+      // This is changed to a simple select, and the join is performed manually on the client.
       let expensesQuery = supabase
         .from('expenses')
-        .select('*, profiles!requestor_id(name)')
+        .select('*')
         .order('submitted_at', { ascending: false });
       
-      // FIX: This explicit client-side filter aligns with Row Level Security policies,
-      // preventing errors for Requestor roles trying to fetch all expenses.
       if (currentUser.role === Role.REQUESTOR) {
         expensesQuery = expensesQuery.eq('requestor_id', currentUser.id);
       }
@@ -92,7 +92,11 @@ const App: React.FC = () => {
       const auditLogRes = (currentUser.role === Role.ADMIN) ? adminResponses[0] : null;
       
       if (usersRes.error) throw usersRes.error;
-      setUsers(usersRes.data.map(mapDbUserToAppUser));
+      // FIX: Create a map of users to manually join names to expenses.
+      const appUsers = usersRes.data.map(mapDbUserToAppUser);
+      setUsers(appUsers);
+      const userMap = new Map(appUsers.map(u => [u.id, u.name]));
+
 
       if (categoriesRes.error) throw categoriesRes.error;
       const fetchedCategories = categoriesRes.data.map(c => ({
@@ -119,7 +123,8 @@ const App: React.FC = () => {
         id: e.id,
         referenceNumber: e.reference_number,
         requestorId: e.requestor_id,
-        requestorName: e.profiles.name,
+        // FIX: Look up the requestor name from the user map.
+        requestorName: userMap.get(e.requestor_id) || 'Unknown User',
         categoryId: e.category_id,
         subcategoryId: e.subcategory_id,
         amount: e.amount,
