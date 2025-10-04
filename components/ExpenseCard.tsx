@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Expense, Status, Role, User, Category, Project, Site } from '../types';
-import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon, StarIcon } from './Icons';
+import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon, StarIcon, TrashIcon } from './Icons';
 import { supabase } from '../supabaseClient';
 
 interface ExpenseCardProps {
@@ -13,6 +13,7 @@ interface ExpenseCardProps {
   onUpdateStatus?: (newStatus: Status, comment?: string) => void;
   onAddComment: (expenseId: string, comment: string) => void;
   onToggleExpensePriority: (expenseId: string) => void;
+  onDeleteExpense?: () => void;
   onClose?: () => void;
 }
 
@@ -52,7 +53,7 @@ const cleanFileName = (path: string | null | undefined): string | undefined => {
 
 const ExpenseCard: React.FC<ExpenseCardProps> = ({ 
     expense, categories, projects, sites, userRole, currentUser,
-    onUpdateStatus, onAddComment, onToggleExpensePriority, onClose 
+    onUpdateStatus, onAddComment, onToggleExpensePriority, onDeleteExpense, onClose 
 }) => {
     const [rejectionComment, setRejectionComment] = useState('');
     const [showRejectionInput, setShowRejectionInput] = useState(false);
@@ -206,7 +207,17 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                         Print
                     </button>
 
-                    <div className="ml-auto">
+                    <div className="flex items-center ml-auto space-x-3">
+                        {userRole === Role.ADMIN && onDeleteExpense && (
+                            <button
+                                type="button"
+                                onClick={onDeleteExpense}
+                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700"
+                            >
+                                <TrashIcon className="w-5 h-5 mr-2" />
+                                Delete
+                            </button>
+                        )}
                         {canTakeAction ? (
                             <div>
                                 {showRejectionInput ? (

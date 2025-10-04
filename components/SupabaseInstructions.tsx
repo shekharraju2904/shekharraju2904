@@ -161,17 +161,17 @@ DROP POLICY IF EXISTS "Allow admins to access audit log." ON public.audit_log;
 CREATE POLICY "Allow admins to access audit log." ON public.audit_log FOR ALL USING (public.get_my_role() = 'admin');
 
 -- EXPENSES
--- FINAL FIX: The previous SELECT policies were too restrictive. When a verifier or approver updated a status,
--- they would lose SELECT permission on the row under its new status, causing the UPDATE to fail.
--- This new, single SELECT policy resolves the issue by allowing any user to see expenses they submitted,
--- AND allowing any elevated role (verifier, approver, admin) to see ALL expenses. The UI and the more
--- restrictive UPDATE policies below will still ensure users can only act on the correct expenses.
+-- NEW CHANGE FOR UNIVERSAL VIEW:
+-- This new, simpler policy allows ANY authenticated user to see ALL expenses.
+-- This fulfills the requirement for a universal transaction log.
+-- The UI and more restrictive UPDATE/INSERT policies still control who can act on which expenses.
 DROP POLICY IF EXISTS "Allow user to manage their own expenses." ON public.expenses;
 DROP POLICY IF EXISTS "Allow requestor to view their own expenses." ON public.expenses;
 DROP POLICY IF EXISTS "Allow verifiers/approvers/admins to see relevant expenses." ON public.expenses;
 DROP POLICY IF EXISTS "Allow users to view expenses based on role." ON public.expenses;
-CREATE POLICY "Allow users to view expenses based on role." ON public.expenses FOR SELECT USING (
-    (auth.uid() = requestor_id) OR (public.get_my_role() IN ('admin', 'verifier', 'approver'))
+DROP POLICY IF EXISTS "Allow authenticated users to view all expenses." ON public.expenses;
+CREATE POLICY "Allow authenticated users to view all expenses." ON public.expenses FOR SELECT USING (
+    auth.role() = 'authenticated'
 );
 
 -- INSERT policy remains the same and is correct.

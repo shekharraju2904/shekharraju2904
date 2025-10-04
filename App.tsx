@@ -1,9 +1,3 @@
-
-
-
-
-
-
 // FIX: Corrected the import statement for React and its hooks. The extraneous 'a,' was removed.
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
@@ -66,9 +60,11 @@ const App: React.FC = () => {
         .select('*')
         .order('submitted_at', { ascending: false });
       
-      if (currentUser.role === Role.REQUESTOR) {
-        expensesQuery = expensesQuery.eq('requestor_id', currentUser.id);
-      }
+      // With the new RLS policy, all users can see all expenses. The UI will handle filtering if needed.
+      // This check is no longer strictly necessary due to RLS but is kept for potential future logic.
+      // if (currentUser.role === Role.REQUESTOR) {
+      //   expensesQuery = expensesQuery.eq('requestor_id', currentUser.id);
+      // }
 
       const baseRequests = [
         supabase.from('profiles').select('*'),
@@ -744,6 +740,60 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteExpense = async (expenseId: string) => {
+    if (!currentUser || currentUser.role !== Role.ADMIN) {
+        alert("You are not authorized to perform this action.");
+        return;
+    }
+    
+    const expenseToDelete = expenses.find(e => e.id === expenseId);
+    if (!expenseToDelete) {
+        alert("Could not find the expense to delete.");
+        return;
+    }
+
+    if (!window.confirm(`Are you sure you want to permanently delete expense ${expenseToDelete.referenceNumber}? This will also delete any associated attachments and cannot be undone.`)) {
+        return;
+    }
+
+    setLoading(true);
+    try {
+        // 1. Delete attachments from storage
+        const pathsToRemove: string[] = [];
+        if (expenseToDelete.attachment_path) {
+            pathsToRemove.push(expenseToDelete.attachment_path);
+        }
+        if (expenseToDelete.subcategory_attachment_path) {
+            pathsToRemove.push(expenseToDelete.subcategory_attachment_path);
+        }
+
+        if (pathsToRemove.length > 0) {
+            const { error: storageError } = await supabase.storage.from('attachments').remove(pathsToRemove);
+            if (storageError) {
+                // Log error but proceed with DB deletion, as the record is the source of truth
+                console.error("Could not delete attachment(s), but proceeding with expense deletion:", storageError);
+            }
+        }
+
+        // 2. Delete expense record from database
+        const { error: dbError } = await supabase.from('expenses').delete().eq('id', expenseId);
+        if (dbError) throw dbError;
+
+        // 3. Log the action
+        await addAuditLogEntry('Expense Deleted', `Deleted expense '${expenseToDelete.referenceNumber}' submitted by ${expenseToDelete.requestorName}.`);
+
+        alert("Expense deleted successfully.");
+        // 4. Refresh data
+        await fetchData();
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        alert(`Failed to delete expense: ${message}`);
+    } finally {
+        setLoading(false);
+    }
+  };
+
   if (!isConfigured) {
     return <SupabaseInstructions onSave={handleSaveConfiguration} />;
   }
@@ -794,6 +844,7 @@ const App: React.FC = () => {
       onUpdateProfile={handleUpdateUserProfile}
       onUpdatePassword={handleUpdateUserPassword}
       onTriggerBackup={handleTriggerBackup}
+      onDeleteExpense={handleDeleteExpense}
     />
   );
 };

@@ -13,6 +13,7 @@ import Modal from './Modal';
 import ExpenseForm from './ExpenseForm';
 import { PlusIcon } from './Icons';
 import ExpenseCard from './ExpenseCard';
+import AllTransactionsDashboard from './AllTransactionsDashboard';
 
 interface DashboardProps {
   currentUser: User;
@@ -47,10 +48,11 @@ interface DashboardProps {
   onUpdateProfile: (name: string) => void;
   onUpdatePassword: (password: string) => void;
   onTriggerBackup: () => void;
+  onDeleteExpense: (expenseId: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, ...adminProps } = props;
+  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onDeleteExpense, ...adminProps } = props;
   const [activeTab, setActiveTab] = useState('overview');
   const [adminPanelTab, setAdminPanelTab] = useState('users');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
@@ -176,6 +178,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             <nav className="flex -mb-px space-x-8" aria-label="Tabs">
               <TabButton tabName="overview" label="Overview" />
               <TabButton tabName="tasks" label={getRoleSpecificTabName()} />
+              <TabButton tabName="all_transactions" label="All Transactions" />
               {canSeeAttachmentsTab && <TabButton tabName="attachments" label="Attachments" />}
               {canSeeReportsTab && <TabButton tabName="reports" label="Reports" />}
               <TabButton tabName="profile" label="My Profile" />
@@ -203,12 +206,20 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
               />
             )}
             {activeTab === 'tasks' && renderRoleSpecificContent()}
-            {activeTab === 'attachments' && canSeeAttachmentsTab && (
-              <AttachmentsDashboard
+            {activeTab === 'all_transactions' && (
+              <AllTransactionsDashboard
                 expenses={expenses}
                 categories={categories}
                 projects={projects}
                 sites={sites}
+                currentUser={currentUser}
+                onViewExpense={setModalExpense}
+              />
+            )}
+            {activeTab === 'attachments' && canSeeAttachmentsTab && (
+              <AttachmentsDashboard
+                expenses={expenses}
+                categories={categories}
               />
             )}
              {activeTab === 'reports' && canSeeReportsTab && (
@@ -255,6 +266,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 } : undefined}
                 onAddComment={onAddExpenseComment}
                 onToggleExpensePriority={adminProps.onToggleExpensePriority}
+                onDeleteExpense={onDeleteExpense ? () => {
+                  onDeleteExpense(modalExpense.id);
+                  setModalExpense(null);
+                } : undefined}
                 onClose={() => setModalExpense(null)}
             />
         </Modal>
