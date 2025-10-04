@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Expense, Category, Status, Role, Project, Site } from '../types';
+import { Expense, Category, Status, Role, Project, Site, User } from '../types';
 import ExpenseList from './ExpenseList';
 import Modal from './Modal';
 import { CheckCircleIcon, XCircleIcon } from './Icons';
 
 interface VerifierDashboardProps {
+  currentUser: User;
   expenses: Expense[];
   categories: Category[];
   projects: Project[];
@@ -15,7 +16,7 @@ interface VerifierDashboardProps {
   onViewExpense: (expense: Expense) => void;
 }
 
-const VerifierDashboard: React.FC<VerifierDashboardProps> = ({ expenses, categories, projects, sites, onUpdateExpenseStatus, onBulkUpdateExpenseStatus, onToggleExpensePriority, onViewExpense }) => {
+const VerifierDashboard: React.FC<VerifierDashboardProps> = ({ currentUser, expenses, categories, projects, sites, onUpdateExpenseStatus, onBulkUpdateExpenseStatus, onToggleExpensePriority, onViewExpense }) => {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [sortBy, setSortBy] = useState<'priority' | 'date'>('priority');
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
@@ -126,7 +127,7 @@ const VerifierDashboard: React.FC<VerifierDashboardProps> = ({ expenses, categor
           sites={sites}
           title="Pending Verification"
           emptyMessage="There are no expenses waiting for verification in the selected date range."
-          userRole={Role.VERIFIER}
+          currentUser={currentUser}
           onUpdateStatus={onUpdateExpenseStatus}
           onToggleExpensePriority={onToggleExpensePriority}
           isSelectionEnabled={true}

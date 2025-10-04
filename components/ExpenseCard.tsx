@@ -99,9 +99,11 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
     const siteName = sites.find(s => s.id === expense.siteId)?.name || 'N/A';
     const categoryDisplayName = `${category?.name || 'Unknown'}${subcategory ? ` / ${subcategory.name}` : ''}`;
 
+    // FIX: Changed from `expense.attachment` logic to use `attachment_path` and fetch URL from storage.
     const attachmentUrl = getAttachmentUrl(expense.attachment_path);
     const attachmentName = cleanFileName(expense.attachment_path);
     
+    // FIX: Added logic for subcategory attachment.
     const subAttachmentUrl = getAttachmentUrl(expense.subcategory_attachment_path);
     const subAttachmentName = cleanFileName(expense.subcategory_attachment_path);
 
@@ -141,6 +143,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                 <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{expense.description}</p>
             </div>
             
+            {/* FIX: Replaced old attachment logic with a new section that handles both attachment types via storage URLs. */}
             {(attachmentUrl || subAttachmentUrl) && (
                 <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-800">Attachments</p>

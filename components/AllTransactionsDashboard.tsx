@@ -10,12 +10,14 @@ interface AllTransactionsDashboardProps {
   sites: Site[];
   currentUser: User;
   onViewExpense: (expense: Expense) => void;
+  onDeleteExpense?: (expenseId: string) => void;
 }
 
-const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ expenses, categories, projects, sites, currentUser, onViewExpense }) => {
+const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ expenses, categories, projects, sites, currentUser, onViewExpense, onDeleteExpense }) => {
   const [statusFilter, setStatusFilter] = useState<Status | 'All'>('All');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [showMyActionsOnly, setShowMyActionsOnly] = useState(false);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDateRange(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -39,6 +41,11 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
             !expense.requestorName.toLowerCase().includes(lowercasedTerm) &&
             !expense.description.toLowerCase().includes(lowercasedTerm)
         ) {
+            return false;
+        }
+    }
+    if (showMyActionsOnly && (currentUser.role === Role.VERIFIER || currentUser.role === Role.APPROVER)) {
+        if (!expense.history.some(h => h.actorId === currentUser.id && ['Verified', 'Approved', 'Rejected'].includes(h.action))) {
             return false;
         }
     }
@@ -98,6 +105,25 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
               className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
           </div>
         </div>
+        {(currentUser.role === Role.VERIFIER || currentUser.role === Role.APPROVER) && (
+            <div className="relative flex items-start pt-4">
+                <div className="flex items-center h-5">
+                    <input
+                        id="my-actions-only"
+                        name="my-actions-only"
+                        type="checkbox"
+                        checked={showMyActionsOnly}
+                        onChange={(e) => setShowMyActionsOnly(e.target.checked)}
+                        className="w-4 h-4 rounded text-primary border-gray-300 focus:ring-primary"
+                    />
+                </div>
+                <div className="ml-3 text-sm">
+                    <label htmlFor="my-actions-only" className="font-medium text-gray-700">
+                        Show only transactions I've actioned
+                    </label>
+                </div>
+            </div>
+        )}
       </div>
 
       <div className="mt-8">
@@ -108,8 +134,9 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
           sites={sites}
           title="Transaction History"
           emptyMessage="No expenses match the current filters."
-          userRole={currentUser.role}
+          currentUser={currentUser}
           onViewExpense={onViewExpense}
+          onDeleteExpense={onDeleteExpense}
         />
       </div>
     </div>

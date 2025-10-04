@@ -84,7 +84,7 @@ const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, ex
           sites={sites}
           title="My Expense History"
           emptyMessage="No expenses match the current filters."
-          userRole={Role.REQUESTOR}
+          currentUser={currentUser}
           onViewExpense={onViewExpense}
         />
       </div>

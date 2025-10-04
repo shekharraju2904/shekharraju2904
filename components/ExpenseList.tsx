@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Expense, Category, Status, User, Project, Site } from '../types';
-import { EyeIcon, StarIcon } from './Icons';
+import { Expense, Category, Status, User, Project, Site, Role } from '../types';
+import { EyeIcon, StarIcon, TrashIcon } from './Icons';
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -9,10 +9,11 @@ interface ExpenseListProps {
   sites: Site[];
   title: string;
   emptyMessage: string;
-  userRole?: User['role'];
+  currentUser: User;
   onViewExpense: (expense: Expense) => void;
   onUpdateStatus?: (expenseId: string, newStatus: Status, comment?: string) => void;
   onToggleExpensePriority?: (expenseId: string) => void;
+  onDeleteExpense?: (expenseId: string) => void;
   isSelectionEnabled?: boolean;
   selectedExpenseIds?: string[];
   onToggleSelection?: (expenseId: string) => void;
@@ -29,7 +30,7 @@ const formatDate = (isoString: string) => {
 };
 
 const ExpenseList: React.FC<ExpenseListProps> = ({ 
-  expenses, categories, projects, sites, title, emptyMessage, userRole, onViewExpense,
+  expenses, categories, projects, sites, title, emptyMessage, currentUser, onViewExpense, onDeleteExpense,
   isSelectionEnabled = false, selectedExpenseIds = [], onToggleSelection, onToggleSelectAll
 }) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -103,7 +104,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount (₹)</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0"><span className="sr-only">View</span></th>
+                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -132,8 +133,20 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getCategoryAndSubcategoryName(expense)}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.amount.toLocaleString('en-IN')}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
-                      <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
-                        <button onClick={() => onViewExpense(expense)} className="text-primary hover:text-primary-hover"><EyeIcon className="w-5 h-5"/></button>
+                      <td className="relative flex items-center justify-end py-4 pl-3 pr-4 space-x-2 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
+                        <button onClick={() => onViewExpense(expense)} className="text-primary hover:text-primary-hover" title="View Details"><EyeIcon className="w-5 h-5"/></button>
+                        {currentUser.role === Role.ADMIN && onDeleteExpense && (expense.status === Status.APPROVED || expense.status === Status.REJECTED) && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteExpense(expense.id);
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                                title="Delete Expense"
+                            >
+                                <TrashIcon className="w-5 h-5"/>
+                            </button>
+                        )}
                       </td>
                     </tr>
                   ))}

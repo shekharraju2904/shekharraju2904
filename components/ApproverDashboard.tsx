@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Expense, Category, Status, Role, Project, Site } from '../types';
+import { Expense, Category, Status, Role, Project, Site, User } from '../types';
 import ExpenseList from './ExpenseList';
 import Modal from './Modal';
 import { CheckCircleIcon, XCircleIcon } from './Icons';
 
 interface ApproverDashboardProps {
+  currentUser: User;
   expenses: Expense[];
   categories: Category[];
   projects: Project[];
@@ -15,7 +16,7 @@ interface ApproverDashboardProps {
   onViewExpense: (expense: Expense) => void;
 }
 
-const ApproverDashboard: React.FC<ApproverDashboardProps> = ({ expenses, categories, projects, sites, onUpdateExpenseStatus, onBulkUpdateExpenseStatus, onToggleExpensePriority, onViewExpense }) => {
+const ApproverDashboard: React.FC<ApproverDashboardProps> = ({ currentUser, expenses, categories, projects, sites, onUpdateExpenseStatus, onBulkUpdateExpenseStatus, onToggleExpensePriority, onViewExpense }) => {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [sortBy, setSortBy] = useState<'priority' | 'date'>('priority');
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
@@ -127,7 +128,7 @@ const ApproverDashboard: React.FC<ApproverDashboardProps> = ({ expenses, categor
           sites={sites}
           title="Pending Final Approval"
           emptyMessage="There are no expenses waiting for final approval in the selected date range."
-          userRole={Role.APPROVER}
+          currentUser={currentUser}
           onUpdateStatus={onUpdateExpenseStatus}
           onToggleExpensePriority={onToggleExpensePriority}
           isSelectionEnabled={true}

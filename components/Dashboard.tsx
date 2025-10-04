@@ -115,6 +115,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         const toVerify = expenses.filter(e => e.status === Status.PENDING_VERIFICATION);
         return (
           <VerifierDashboard
+            currentUser={currentUser}
             expenses={toVerify}
             categories={categories}
             projects={projects}
@@ -129,6 +130,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         const toApprove = expenses.filter(e => e.status === Status.PENDING_APPROVAL);
         return (
           <ApproverDashboard
+            currentUser={currentUser}
             expenses={toApprove}
             categories={categories}
             projects={projects}
@@ -214,6 +216,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 sites={sites}
                 currentUser={currentUser}
                 onViewExpense={setModalExpense}
+                onDeleteExpense={onDeleteExpense}
               />
             )}
             {activeTab === 'attachments' && canSeeAttachmentsTab && (
