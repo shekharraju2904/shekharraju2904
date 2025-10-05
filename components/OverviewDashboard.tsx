@@ -10,9 +10,9 @@ interface OverviewDashboardProps {
 }
 
 const StatCard: React.FC<{ title: string; value: string | number; }> = ({ title, value }) => (
-    <div className="px-4 py-5 overflow-hidden bg-white rounded-lg shadow sm:p-6">
-        <dt className="text-sm font-medium text-gray-500 truncate">{title}</dt>
-        <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{value}</dd>
+    <div className="px-4 py-5 overflow-hidden bg-white rounded-xl shadow-lg sm:p-6">
+        <dt className="text-sm font-medium text-neutral-500 truncate">{title}</dt>
+        <dd className="mt-1 text-3xl font-semibold tracking-tight text-neutral-900">{value}</dd>
     </div>
 );
 
@@ -92,46 +92,46 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categor
     const StatusBadge = ({ status }: { status: Status }) => {
         const baseClasses = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full';
         switch (status) {
-          case Status.APPROVED: return <span className={`${baseClasses} bg-green-100 text-green-800`}>{status}</span>;
-          case Status.REJECTED: return <span className={`${baseClasses} bg-red-100 text-red-800`}>{status}</span>;
-          case Status.PENDING_APPROVAL: return <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>{status}</span>;
-          case Status.PENDING_VERIFICATION: return <span className={`${baseClasses} bg-blue-100 text-blue-800`}>{status}</span>;
-          default: return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>{status}</span>;
+          case Status.APPROVED: return <span className={`${baseClasses} bg-success-100 text-success-800`}>{status}</span>;
+          case Status.REJECTED: return <span className={`${baseClasses} bg-accent-100 text-accent-800`}>{status}</span>;
+          case Status.PENDING_APPROVAL: return <span className={`${baseClasses} bg-amber-100 text-amber-800`}>{status}</span>;
+          case Status.PENDING_VERIFICATION: return <span className={`${baseClasses} bg-secondary-100 text-secondary-800`}>{status}</span>;
+          default: return <span className={`${baseClasses} bg-neutral-100 text-neutral-800`}>{status}</span>;
         }
     };
 
 
     return (
         <div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">System Overview</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-neutral-900">System Overview</h2>
             
-            <div className="p-4 my-6 bg-white rounded-lg shadow">
-                <h3 className="text-base font-semibold leading-6 text-gray-900">Export Options</h3>
+            <div className="p-4 my-6 bg-white rounded-xl shadow-lg">
+                <h3 className="text-base font-semibold leading-6 text-neutral-900">Export Options</h3>
                 <div className="grid grid-cols-1 gap-4 mt-2 sm:grid-cols-2 lg:grid-cols-5">
                     <div>
-                        <label htmlFor="filter-project" className="block text-sm font-medium text-gray-700">Project</label>
-                        <select id="filter-project" value={filterProject} onChange={e => setFilterProject(e.target.value)} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <label htmlFor="filter-project" className="block text-sm font-medium text-neutral-700">Project</label>
+                        <select id="filter-project" value={filterProject} onChange={e => setFilterProject(e.target.value)} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
                             <option value="All">All Projects</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
                      <div>
-                        <label htmlFor="filter-site" className="block text-sm font-medium text-gray-700">Site/Place</label>
-                        <select id="filter-site" value={filterSite} onChange={e => setFilterSite(e.target.value)} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <label htmlFor="filter-site" className="block text-sm font-medium text-neutral-700">Site/Place</label>
+                        <select id="filter-site" value={filterSite} onChange={e => setFilterSite(e.target.value)} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
                             <option value="All">All Sites</option>
                             {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
                      <div>
-                        <label htmlFor="filter-category" className="block text-sm font-medium text-gray-700">Category</label>
-                        <select id="filter-category" value={filterCategory} onChange={handleCategoryFilterChange} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <label htmlFor="filter-category" className="block text-sm font-medium text-neutral-700">Category</label>
+                        <select id="filter-category" value={filterCategory} onChange={handleCategoryFilterChange} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
                             <option value="All">All Categories</option>
                             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label htmlFor="filter-subcategory" className="block text-sm font-medium text-gray-700">Subcategory</label>
-                        <select id="filter-subcategory" value={filterSubcategory} onChange={e => setFilterSubcategory(e.target.value)} disabled={filterCategory === 'All'} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm disabled:bg-gray-100">
+                        <label htmlFor="filter-subcategory" className="block text-sm font-medium text-neutral-700">Subcategory</label>
+                        <select id="filter-subcategory" value={filterSubcategory} onChange={e => setFilterSubcategory(e.target.value)} disabled={filterCategory === 'All'} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm disabled:bg-neutral-100 disabled:cursor-not-allowed">
                             <option value="All">All Subcategories</option>
                             {subcategoriesForFilter.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
                         </select>
@@ -140,7 +140,7 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categor
                         <button
                             type="button"
                             onClick={handleDownloadCSV}
-                            className="inline-flex items-center w-full justify-center px-3 py-2 text-sm font-semibold text-white rounded-md shadow-sm bg-primary hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-semibold text-white transition-transform duration-200 transform rounded-md shadow-sm bg-gradient-to-r from-secondary-500 to-primary-500 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
                         >
                             <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
                             Download CSV
@@ -156,24 +156,24 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categor
                 <StatCard title="Approved / Rejected" value={`${approvedCount} / ${rejectedCount}`} />
             </div>
 
-            <div className="p-6 mt-8 bg-white rounded-lg shadow">
-                <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Activity</h3>
+            <div className="p-6 mt-8 bg-white rounded-xl shadow-lg">
+                <h3 className="text-lg font-medium leading-6 text-neutral-900">Recent Activity</h3>
                 <div className="flow-root mt-6">
                     {recentExpenses.length > 0 ? (
-                    <ul className="-my-5 divide-y divide-gray-200">
+                    <ul className="-my-5 divide-y divide-neutral-200">
                         {recentExpenses.map(expense => (
                         <li key={expense.id} className="py-4">
                             <div className="flex items-center space-x-4">
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
+                                <p className="text-sm font-medium text-neutral-900 truncate">
                                     <span className="font-mono">{expense.referenceNumber}</span> - {expense.requestorName}
                                 </p>
-                                <p className="text-sm text-gray-500 truncate">
+                                <p className="text-sm text-neutral-500 truncate">
                                     Project: {getProjectName(expense.projectId)} on {new Date(expense.submittedAt).toLocaleDateString()}
                                 </p>
                             </div>
-                            <div>
-                               <p className="mb-1 text-sm font-medium text-right text-gray-900">₹{expense.amount.toLocaleString('en-IN')}</p>
+                            <div className="text-right">
+                               <p className="mb-1 text-sm font-medium text-neutral-900">₹{expense.amount.toLocaleString('en-IN')}</p>
                                <StatusBadge status={expense.status} />
                             </div>
                             </div>
@@ -182,7 +182,7 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categor
                     </ul>
                     ) : (
                          <div className="py-8 text-center">
-                            <p className="text-sm text-gray-500">No expense activity to show.</p>
+                            <p className="text-sm text-neutral-500">No expense activity to show.</p>
                         </div>
                     )}
                 </div>

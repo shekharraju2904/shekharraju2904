@@ -52,35 +52,33 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+    <div className="flex items-center justify-center min-h-screen px-4 bg-slate-100">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-2xl shadow-2xl">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Expense Approval System
+          <h2 className="text-4xl font-extrabold bg-gradient-to-r from-secondary-500 to-primary-500 bg-clip-text text-transparent">
+            ExpenseFlow
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-neutral-600">
             {isLoginView ? 'Sign in to your account' : 'Create a new account'}
           </p>
         </div>
 
-        <form className="space-y-4" onSubmit={isLoginView ? handleLogin : handleSignup}>
+        <form className="space-y-6" onSubmit={isLoginView ? handleLogin : handleSignup}>
           {!isLoginView && (
-            <>
-              <div>
-                <label htmlFor="name" className="sr-only">Full Name</label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                  placeholder="Full Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-            </>
+            <div>
+              <label htmlFor="name" className="sr-only">Full Name</label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                required
+                className="relative block w-full px-3 py-2 text-neutral-900 placeholder-neutral-500 border border-neutral-300 rounded-md appearance-none focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                placeholder="Full Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
           )}
           <div>
             <label htmlFor="email-address" className="sr-only">Email address</label>
@@ -90,7 +88,7 @@ const Login: React.FC = () => {
               type="email"
               autoComplete="email"
               required
-              className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+              className="relative block w-full px-3 py-2 text-neutral-900 placeholder-neutral-500 border border-neutral-300 rounded-md appearance-none focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
               placeholder="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -104,28 +102,28 @@ const Login: React.FC = () => {
               type="password"
               autoComplete={isLoginView ? "current-password" : "new-password"}
               required
-              className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+              className="relative block w-full px-3 py-2 text-neutral-900 placeholder-neutral-500 border border-neutral-300 rounded-md appearance-none focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
           
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {message && !error && <p className="text-sm text-green-600">{message}</p>}
+          {error && <p className="text-sm text-accent-600">{error}</p>}
+          {message && !error && <p className="text-sm text-success-600">{message}</p>}
 
           <div>
             <button
               type="submit"
               disabled={loading}
-              className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md group bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+              className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm group bg-gradient-to-r from-secondary-500 to-primary-500 hover:from-secondary-600 hover:to-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-70 transition-transform duration-200 hover:scale-105"
             >
               {loading ? 'Processing...' : (isLoginView ? 'Sign in' : 'Sign up')}
             </button>
           </div>
         </form>
-        <div className="space-y-2 text-sm text-center">
-            <button onClick={() => { setIsLoginView(!isLoginView); setError(''); setMessage('');}} className="font-medium text-primary hover:text-primary-hover">
+        <div className="text-sm text-center">
+            <button onClick={() => { setIsLoginView(!isLoginView); setError(''); setMessage('');}} className="font-medium text-primary-600 hover:text-primary-500">
                 {isLoginView ? 'Don\'t have an account? Sign up' : 'Already have an account? Sign in'}
             </button>
         </div>

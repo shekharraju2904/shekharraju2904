@@ -15,6 +15,8 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
     const projectChartRef = useRef<HTMLCanvasElement>(null);
     const monthlyChartRef = useRef<HTMLCanvasElement>(null);
 
+    const chartColors = ['#6366f1', '#0ea5e9', '#f43f5e', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#64748b'];
+
     useEffect(() => {
         let categoryChart: any;
         let projectChart: any;
@@ -36,10 +38,12 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     datasets: [{
                         label: 'Expenses by Category',
                         data: expensesByCategory.map(c => c.total),
-                        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899'],
+                        backgroundColor: chartColors,
+                        borderColor: '#fff',
+                        borderWidth: 2,
                     }]
                 },
-                options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Approved Spending by Category' } } }
+                options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Approved Spending by Category', font: { size: 16 } } } }
             });
         }
 
@@ -59,10 +63,12 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     datasets: [{
                         label: 'Expenses by Project',
                         data: expensesByProject.map(p => p.total),
-                         backgroundColor: ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#4f46e5'],
+                         backgroundColor: chartColors.slice().reverse(),
+                         borderColor: '#fff',
+                         borderWidth: 2,
                     }]
                 },
-                options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Approved Spending by Project' } } }
+                options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Approved Spending by Project', font: {size: 16} } } }
             });
         }
         
@@ -93,12 +99,13 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     datasets: [{
                         label: 'Total Approved Amount (₹)',
                         data: sortedMonths.map(month => monthlyData[month]),
-                        backgroundColor: '#4f46e5',
+                        backgroundColor: '#6366f1',
+                        borderRadius: 4,
                     }]
                 },
                 options: {
                     responsive: true,
-                    plugins: { legend: { display: false }, title: { display: true, text: 'Monthly Spending Trend' } },
+                    plugins: { legend: { display: false }, title: { display: true, text: 'Monthly Spending Trend', font: {size: 16} } },
                     scales: { y: { beginAtZero: true } }
                 }
             });
@@ -114,18 +121,18 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
 
     return (
         <div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">Reports & Analytics</h2>
-            <p className="mt-1 text-sm text-gray-600">Visualize spending patterns and gain insights into expense data.</p>
+            <h2 className="text-2xl font-bold tracking-tight text-neutral-900">Reports & Analytics</h2>
+            <p className="mt-1 text-sm text-neutral-600">Visualize spending patterns and gain insights into expense data.</p>
             
             <div className="grid grid-cols-1 gap-8 mt-6 lg:grid-cols-2">
-                <div className="p-6 bg-white rounded-lg shadow">
+                <div className="p-6 bg-white rounded-xl shadow-lg">
                     <canvas ref={categoryChartRef}></canvas>
                 </div>
-                <div className="p-6 bg-white rounded-lg shadow">
+                <div className="p-6 bg-white rounded-xl shadow-lg">
                     <canvas ref={projectChartRef}></canvas>
                 </div>
             </div>
-            <div className="p-6 mt-8 bg-white rounded-lg shadow">
+            <div className="p-6 mt-8 bg-white rounded-xl shadow-lg">
                  <canvas ref={monthlyChartRef}></canvas>
             </div>
         </div>

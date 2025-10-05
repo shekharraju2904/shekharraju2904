@@ -159,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const TabButton = ({ tabName, label }: {tabName: string; label: string}) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`${activeTab === tabName ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+      className={`${activeTab === tabName ? 'border-primary-500 text-primary-600' : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
     >
       {label}
     </button>
@@ -179,7 +179,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       />
       <main className="py-10">
         <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="pb-5 border-b border-gray-200 sm:flex sm:items-baseline sm:justify-between">
+          <div className="pb-5 border-b border-neutral-200 sm:flex sm:items-baseline sm:justify-between">
             <nav className="flex -mb-px space-x-8" aria-label="Tabs">
               <TabButton tabName="overview" label="Overview" />
               <TabButton tabName="tasks" label={getRoleSpecificTabName()} />
@@ -193,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 <button
                   type="button"
                   onClick={() => setNewExpenseModalOpen(true)}
-                  className="inline-flex items-center px-3 py-2 text-sm font-semibold text-white rounded-md shadow-sm bg-primary hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white transition-transform duration-200 transform rounded-md shadow-sm bg-gradient-to-r from-secondary-500 to-primary-500 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
                 >
                   <PlusIcon className="w-5 h-5 mr-2" />
                   Submit New Expense

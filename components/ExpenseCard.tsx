@@ -107,54 +107,54 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
     const subAttachmentName = cleanFileName(expense.subcategory_attachment_path);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             <div className="flex items-start justify-between">
                 <div>
-                    <p className="font-mono text-gray-800">{expense.referenceNumber}</p>
-                    <p className="text-sm text-gray-500">Submitted on {formatDateTime(expense.submittedAt)}</p>
+                    <p className="font-mono text-neutral-800">{expense.referenceNumber}</p>
+                    <p className="text-sm text-neutral-500">Submitted on {formatDateTime(expense.submittedAt)}</p>
                 </div>
                 {canTogglePriority && (
-                     <button onClick={() => onToggleExpensePriority(expense.id)} className={`p-1 rounded-full ${expense.isHighPriority ? 'text-amber-500 bg-amber-100' : 'text-gray-400 hover:bg-gray-100'}`} title={expense.isHighPriority ? "Remove High Priority" : "Mark as High Priority"}>
+                     <button onClick={() => onToggleExpensePriority(expense.id)} className={`p-1.5 rounded-full transition-colors ${expense.isHighPriority ? 'text-amber-500 bg-amber-100' : 'text-neutral-400 hover:bg-neutral-100'}`} title={expense.isHighPriority ? "Remove High Priority" : "Mark as High Priority"}>
                         <StarIcon filled={expense.isHighPriority} className="w-5 h-5" />
                     </button>
                 )}
             </div>
             
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div className="font-medium text-gray-500">Requestor</div>
-                <div className="text-gray-800">{expense.requestorName}</div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                <div className="font-medium text-neutral-500">Requestor</div>
+                <div className="text-neutral-800 font-medium">{expense.requestorName}</div>
                 
-                <div className="font-medium text-gray-500">Amount</div>
-                <div className="font-semibold text-gray-900">₹{expense.amount.toLocaleString('en-IN')}</div>
+                <div className="font-medium text-neutral-500">Amount</div>
+                <div className="font-semibold text-2xl text-primary-700">₹{expense.amount.toLocaleString('en-IN')}</div>
 
-                <div className="font-medium text-gray-500">Project</div>
-                <div className="text-gray-800">{projectName}</div>
+                <div className="font-medium text-neutral-500">Project</div>
+                <div className="text-neutral-800">{projectName}</div>
 
-                <div className="font-medium text-gray-500">Site/Place</div>
-                <div className="text-gray-800">{siteName}</div>
+                <div className="font-medium text-neutral-500">Site/Place</div>
+                <div className="text-neutral-800">{siteName}</div>
 
-                <div className="font-medium text-gray-500">Category</div>
-                <div className="text-gray-800">{categoryDisplayName}</div>
+                <div className="font-medium text-neutral-500 col-span-2">Category</div>
+                <div className="text-neutral-800 col-span-2">{categoryDisplayName}</div>
             </div>
 
-            <div className="p-3 bg-gray-50 rounded-md">
-                <p className="text-sm font-medium text-gray-800">Description</p>
-                <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{expense.description}</p>
+            <div className="p-4 bg-neutral-50 rounded-lg">
+                <p className="text-sm font-medium text-neutral-800">Description</p>
+                <p className="mt-1 text-sm text-neutral-600 whitespace-pre-wrap">{expense.description}</p>
             </div>
             
             {(attachmentUrl || subAttachmentUrl) && (
                 <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-800">Attachments</p>
+                    <p className="text-sm font-medium text-neutral-800">Attachments</p>
                      <div className="flex flex-col space-y-2">
                         {attachmentUrl && (
-                            <a href={attachmentUrl} download={attachmentName} target="_blank" rel="noopener noreferrer" className="inline-flex items-center p-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                                <PaperClipIcon className="w-4 h-4 mr-2" />
+                            <a href={attachmentUrl} download={attachmentName} target="_blank" rel="noopener noreferrer" className="inline-flex items-center p-2 text-sm text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 transition-colors">
+                                <PaperClipIcon className="w-4 h-4 mr-2 text-neutral-400" />
                                 <span className="truncate">{attachmentName || 'Category Attachment'}</span>
                             </a>
                         )}
                         {subAttachmentUrl && (
-                             <a href={subAttachmentUrl} download={subAttachmentName} target="_blank" rel="noopener noreferrer" className="inline-flex items-center p-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                                <PaperClipIcon className="w-4 h-4 mr-2" />
+                             <a href={subAttachmentUrl} download={subAttachmentName} target="_blank" rel="noopener noreferrer" className="inline-flex items-center p-2 text-sm text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 transition-colors">
+                                <PaperClipIcon className="w-4 h-4 mr-2 text-neutral-400" />
                                 <span className="truncate">{subAttachmentName || 'Subcategory Attachment'}</span>
                             </a>
                         )}
@@ -163,24 +163,24 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
             )}
             
             <div>
-                <button onClick={() => setShowHistory(!showHistory)} className="flex items-center justify-between w-full text-sm font-medium text-left text-gray-600 hover:text-gray-900">
+                <button onClick={() => setShowHistory(!showHistory)} className="flex items-center justify-between w-full text-sm font-medium text-left text-neutral-600 hover:text-neutral-900">
                     <span>Approval History & Comments</span>
                     <ChevronDownIcon className={`w-5 h-5 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
                 </button>
                 {showHistory && (
-                    <div className="pt-4 mt-2 space-y-4 border-t border-gray-200">
+                    <div className="pt-4 mt-2 space-y-4 border-t border-neutral-200">
                         {expense.history.map((item, index) => {
                             const isComment = item.action === 'Comment';
                             const isCurrentUser = item.actorId === currentUser.id;
                             
                             if (isComment) {
                                 return (
-                                    <div key={index} className={`flex items-start gap-2.5 ${isCurrentUser ? 'justify-end' : ''}`}>
+                                    <div key={index} className={`flex items-start gap-3 ${isCurrentUser ? 'justify-end' : ''}`}>
                                         {!isCurrentUser && item.actorId !== 'system' && <Avatar name={item.actorName} size="sm" />}
-                                        <div className={`flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-gray-200 rounded-xl ${isCurrentUser ? 'bg-primary text-white rounded-br-none' : 'bg-gray-100 text-gray-900 rounded-bl-none'}`}>
+                                        <div className={`flex flex-col w-full max-w-xs leading-1.5 p-3 rounded-xl ${isCurrentUser ? 'bg-primary-600 text-white rounded-br-none' : 'bg-neutral-100 text-neutral-900 rounded-bl-none'}`}>
                                             <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                                                <span className={`text-sm font-semibold ${isCurrentUser ? 'text-white' : 'text-gray-900'}`}>{item.actorName}</span>
-                                                <span className={`text-xs font-normal ${isCurrentUser ? 'text-gray-200' : 'text-gray-500'}`}>{formatDateTime(item.timestamp)}</span>
+                                                <span className={`text-sm font-semibold`}>{item.actorName}</span>
+                                                <span className={`text-xs font-normal ${isCurrentUser ? 'text-primary-200' : 'text-neutral-500'}`}>{formatDateTime(item.timestamp)}</span>
                                             </div>
                                             {item.comment && <p className="py-2 text-sm font-normal">{item.comment}</p>}
                                         </div>
@@ -191,13 +191,13 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                                 // System action
                                 return (
                                     <div key={index} className="flex items-center w-full">
-                                        <div className="w-full h-px bg-gray-200"></div>
+                                        <div className="w-full h-px bg-neutral-200"></div>
                                         <div className="px-3 text-center shrink-0">
-                                            <p className="text-sm font-medium text-gray-700">{item.action} by {item.actorName}</p>
-                                            <p className="text-xs text-gray-500 whitespace-nowrap">{formatDateTime(item.timestamp)}</p>
-                                            {item.comment && <p className="max-w-xs mx-auto text-xs italic text-gray-500">"{item.comment}"</p>}
+                                            <p className="text-sm font-medium text-neutral-700">{item.action} by {item.actorName}</p>
+                                            <p className="text-xs text-neutral-500 whitespace-nowrap">{formatDateTime(item.timestamp)}</p>
+                                            {item.comment && <p className="max-w-xs mx-auto text-xs italic text-neutral-500">"{item.comment}"</p>}
                                         </div>
-                                        <div className="w-full h-px bg-gray-200"></div>
+                                        <div className="w-full h-px bg-neutral-200"></div>
                                     </div>
                                 );
                             }
@@ -208,17 +208,17 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
 
             <div className="pt-4 border-t no-print">
                 <form onSubmit={handleAddComment}>
-                    <label htmlFor="add-comment" className="block text-sm font-medium text-gray-700">Add a Comment</label>
+                    <label htmlFor="add-comment" className="block text-sm font-medium text-neutral-700">Add a Comment</label>
                     <div className="flex mt-1 space-x-2">
                         <textarea
                             id="add-comment"
                             rows={2}
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
-                            className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                            className="block w-full border-neutral-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                             placeholder="Type your comment here..."
                         ></textarea>
-                         <button type="submit" className="px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary hover:bg-primary-hover">Send</button>
+                         <button type="submit" className="px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary-600 hover:bg-primary-700">Send</button>
                     </div>
                 </form>
             </div>
@@ -228,7 +228,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                     <button
                         type="button"
                         onClick={handlePrint}
-                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md shadow-sm hover:bg-neutral-50"
                     >
                         <PrinterIcon className="w-5 h-5 mr-2" />
                         Print
@@ -239,7 +239,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                             <button
                                 type="button"
                                 onClick={onSoftDeleteExpense}
-                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700"
+                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-accent-600 border border-transparent rounded-md shadow-sm hover:bg-accent-700"
                             >
                                 <TrashIcon className="w-5 h-5 mr-2" />
                                 Delete
@@ -249,29 +249,29 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                             <div>
                                 {showRejectionInput ? (
                                     <div>
-                                        <label htmlFor="rejection_comment" className="block text-sm font-medium text-gray-700">Rejection Reason</label>
+                                        <label htmlFor="rejection_comment" className="block text-sm font-medium text-neutral-700">Rejection Reason</label>
                                         <textarea
                                             id="rejection_comment"
                                             rows={2}
                                             value={rejectionComment}
                                             onChange={(e) => setRejectionComment(e.target.value)}
-                                            className="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                                            className="block w-full mt-1 border-neutral-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                                             placeholder="Provide a reason for rejection (optional)"
                                         ></textarea>
                                         <div className="flex justify-end mt-2 space-x-2">
-                                            <button onClick={() => setShowRejectionInput(false)} className="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded-md">Cancel</button>
-                                            <button onClick={handleReject} className="inline-flex items-center px-3 py-1 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700">
+                                            <button onClick={() => setShowRejectionInput(false)} className="px-3 py-1 text-sm text-neutral-700 bg-white border border-neutral-300 rounded-md">Cancel</button>
+                                            <button onClick={handleReject} className="inline-flex items-center px-3 py-1 text-sm font-medium text-white bg-accent-600 border border-transparent rounded-md shadow-sm hover:bg-accent-700">
                                                 Confirm Rejection
                                             </button>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="flex justify-end space-x-3">
-                                        <button onClick={() => setShowRejectionInput(true)} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700">
+                                        <button onClick={() => setShowRejectionInput(true)} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-accent-600 border border-transparent rounded-md shadow-sm hover:bg-accent-700">
                                             <XCircleIcon className="w-5 h-5 mr-2" />
                                             Reject
                                         </button>
-                                        <button onClick={handleApprove} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700">
+                                        <button onClick={handleApprove} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-success-600 border border-transparent rounded-md shadow-sm hover:bg-success-700">
                                             <CheckCircleIcon className="w-5 h-5 mr-2" />
                                             {userRole === Role.VERIFIER ? 'Verify' : 'Approve'}
                                         </button>
@@ -279,7 +279,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                                 )}
                             </div>
                         ) : (
-                            onClose && <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50">Close</button>
+                            onClose && <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md shadow-sm hover:bg-neutral-50">Close</button>
                         )}
                     </div>
                 </div>

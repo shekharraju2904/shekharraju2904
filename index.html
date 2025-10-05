@@ -11,20 +11,11 @@
         theme: {
           extend: {
             colors: {
-              primary: {
-                DEFAULT: '#4f46e5',
-                hover: '#4338ca',
-                light: '#e0e7ff'
-              },
-              secondary: '#10b981',
-              accent: '#f59e0b',
-              neutral: {
-                DEFAULT: '#f3f4f6',
-                100: '#f9fafb',
-                200: '#e5e7eb',
-                300: '#d1d5db',
-                800: '#1f2937',
-              }
+              primary: tailwind.theme.colors.indigo,
+              secondary: tailwind.theme.colors.sky,
+              accent: tailwind.theme.colors.rose,
+              neutral: tailwind.theme.colors.slate,
+              success: tailwind.theme.colors.emerald,
             }
           }
         }
@@ -42,6 +33,9 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+  body {
+    background-color: #f1f5f9; /* slate-100 */
+  }
   @media print {
     body * {
       visibility: hidden;
