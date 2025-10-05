@@ -1,33 +1,32 @@
-
 import React from 'react';
 
 interface AvatarProps {
   name: string;
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
-const Avatar: React.FC<AvatarProps> = ({ name, size = 'md' }) => {
+const Avatar: React.FC<AvatarProps> = ({ name, size = 'md', className }) => {
   const getInitials = (nameStr: string) => {
-    if (!nameStr) return '';
+    if (!nameStr) return '?';
     const names = nameStr.split(' ');
-    if (names.length > 1) {
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return nameStr.substring(0, 2).toUpperCase();
   };
 
   const colors = [
-    'bg-sky-300 text-sky-900',
-    'bg-indigo-300 text-indigo-900',
-    'bg-rose-300 text-rose-900',
-    'bg-amber-300 text-amber-900',
-    'bg-emerald-300 text-emerald-900',
-    'bg-violet-300 text-violet-900',
-    'bg-lime-300 text-lime-900',
-    'bg-cyan-300 text-cyan-900',
+    'from-sky-500 to-cyan-400',
+    'from-indigo-500 to-blue-400',
+    'from-rose-500 to-pink-400',
+    'from-amber-500 to-yellow-400',
+    'from-emerald-500 to-green-400',
+    'from-violet-500 to-purple-400',
+    'from-lime-500 to-teal-400',
   ];
 
-  const colorIndex = (name.charCodeAt(0) + name.length) % colors.length;
+  const colorIndex = name ? (name.charCodeAt(0) + name.length) % colors.length : 0;
   const colorClass = colors[colorIndex];
 
 
@@ -38,9 +37,9 @@ const Avatar: React.FC<AvatarProps> = ({ name, size = 'md' }) => {
   };
 
   return (
-    <span className={`inline-flex items-center justify-center rounded-full font-bold ${sizeClasses[size]} ${colorClass}`}>
+    <div className={`inline-flex items-center justify-center rounded-full font-bold text-white bg-gradient-to-br ${sizeClasses[size]} ${colorClass} ${className}`}>
       <span className="leading-none">{getInitials(name)}</span>
-    </span>
+    </div>
   );
 };
 

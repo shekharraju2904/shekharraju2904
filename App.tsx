@@ -8,6 +8,7 @@ import { supabase, initializeSupabase } from './supabaseClient';
 import SupabaseInstructions from './components/SupabaseInstructions';
 import AdminSetup from './components/AdminSetup';
 import { Session } from '@supabase/supabase-js';
+import LoadingSpinner from './components/LoadingSpinner';
 
 const generateReferenceNumber = (): string => {
     const date = new Date();
@@ -489,7 +490,7 @@ const App: React.FC = () => {
         if (updatedExpense.status === Status.PENDING_VERIFICATION) {
             users.filter(u => u.role === Role.VERIFIER).forEach(v => participants.set(v.id, v));
         } else if (updatedExpense.status === Status.PENDING_APPROVAL) {
-            users.filter(u => u.role === Role.APPROVER).forEach(a => participants.set(a.id, a));
+            users.filter(u => u.role === Role.APPROVER).forEach(a => participants.set(a, a));
         }
         
         // 4. Filter out the current user (commenter) to create the final recipients list
@@ -866,8 +867,8 @@ const App: React.FC = () => {
     return <SupabaseInstructions onSave={handleSaveConfiguration} />;
   }
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading && !currentUser) {
+    return <LoadingSpinner />;
   }
 
   if (needsAdminSetup) {
@@ -916,6 +917,7 @@ const App: React.FC = () => {
       onSoftDeleteExpense={handleSoftDeleteExpense}
       onRestoreExpense={handleRestoreExpense}
       onPermanentlyDeleteExpense={handlePermanentlyDeleteExpense}
+      isLoading={loading}
     />
   );
 };

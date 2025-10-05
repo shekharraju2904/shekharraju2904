@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, DragEvent } from 'react';
 import { Category, Expense, Project, Site } from '../types';
-import { PaperClipIcon, XCircleIcon } from './Icons';
+import { PaperClipIcon, XCircleIcon, UploadCloud, FileImage } from './Icons';
 
 interface ExpenseFormProps {
   categories: Category[];
@@ -9,6 +9,107 @@ interface ExpenseFormProps {
   onSubmit: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
   onClose: () => void;
 }
+
+const FileInput: React.FC<{
+    label: string;
+    file: File | undefined;
+    setFile: (file: File | undefined) => void;
+    inputRef: React.RefObject<HTMLInputElement>;
+    isRequired?: boolean;
+}> = ({ label, file, setFile, inputRef, isRequired }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    const handleFileChange = (selectedFile: File | undefined) => {
+        if (selectedFile) {
+            setFile(selectedFile);
+            if (selectedFile.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPreviewUrl(reader.result as string);
+                };
+                reader.readAsDataURL(selectedFile);
+            } else {
+                setPreviewUrl(null);
+            }
+        }
+    };
+
+    const handleRemoveFile = () => {
+        setFile(undefined);
+        setPreviewUrl(null);
+        if (inputRef.current) {
+            inputRef.current.value = '';
+        }
+    };
+
+    const onDragEnter = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+    const onDragLeave = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+    const onDragOver = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    const onDrop = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileChange(e.dataTransfer.files[0]);
+        }
+    };
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-neutral-300">{label} {isRequired && <span className="text-accent-danger">*</span>}</label>
+            {file ? (
+                <div className="relative flex items-center p-3 mt-1 bg-neutral-900/50 border border-neutral-700 rounded-lg">
+                    {previewUrl ? (
+                         <img src={previewUrl} alt="Preview" className="w-12 h-12 mr-3 object-cover rounded-md" />
+                    ) : (
+                        <div className="flex items-center justify-center w-12 h-12 mr-3 bg-neutral-700 rounded-md">
+                            <FileImage className="w-6 h-6 text-neutral-400" />
+                        </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-neutral-100 truncate">{file.name}</p>
+                        <p className="text-xs text-neutral-400">{(file.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                    <button type="button" onClick={handleRemoveFile} className="ml-2 p-1 text-neutral-400 rounded-full hover:bg-neutral-700 hover:text-white">
+                        <XCircleIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            ) : (
+                <div
+                    onDragEnter={onDragEnter}
+                    onDragLeave={onDragLeave}
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
+                    className={`flex justify-center w-full px-6 pt-5 pb-6 mt-1 border-2 border-dashed rounded-lg transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'border-neutral-600 hover:border-neutral-500'}`}
+                >
+                    <div className="space-y-1 text-center">
+                        <UploadCloud className="w-12 h-12 mx-auto text-neutral-500"/>
+                        <div className="flex text-sm text-neutral-400">
+                            <label htmlFor={label} className="relative font-semibold rounded-md cursor-pointer text-primary-light hover:text-secondary focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-neutral-900 focus-within:ring-primary">
+                                <span>Upload a file</span>
+                                <input ref={inputRef} id={label} name={label} type="file" className="sr-only" onChange={(e) => handleFileChange(e.target.files?.[0])} />
+                            </label>
+                            <p className="pl-1">or drag and drop</p>
+                        </div>
+                        <p className="text-xs text-neutral-500">PNG, JPG, PDF up to 10MB</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, onSubmit, onClose }) => {
   const [categoryId, setCategoryId] = useState<string>(categories[0]?.id || '');
@@ -19,7 +120,6 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
   const [siteId, setSiteId] = useState<string>(sites[0]?.id || '');
   const [attachment, setAttachment] = useState<File | undefined>(undefined);
   const [subcategoryAttachment, setSubcategoryAttachment] = useState<File | undefined>(undefined);
-  const [showSubcategoryAttachmentInput, setShowSubcategoryAttachmentInput] = useState(false);
   const [error, setError] = useState('');
 
   const categoryAttachmentInputRef = useRef<HTMLInputElement>(null);
@@ -28,52 +128,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
   const selectedCategory = categories.find(c => c.id === categoryId);
   const subcategoriesForSelectedCategory = selectedCategory?.subcategories || [];
   const selectedSubcategory = subcategoriesForSelectedCategory.find(sc => sc.id === subcategoryId);
-
-  const handleRemoveSubcategoryAttachment = () => {
-    setSubcategoryAttachment(undefined);
-    if (subcategoryAttachmentInputRef.current) {
-        subcategoryAttachmentInputRef.current.value = '';
-    }
-  };
   
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCategoryId(e.target.value);
-    setSubcategoryId(''); // Reset subcategory when category changes
-    setShowSubcategoryAttachmentInput(false); // Reset toggle
-    handleRemoveSubcategoryAttachment(); // Clear file
-  };
-
-  const handleSubcategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSubcategoryId(e.target.value);
-    setShowSubcategoryAttachmentInput(false); // Reset toggle
-    handleRemoveSubcategoryAttachment(); // Clear file
-  };
-
-  const handleToggleSubcategoryAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isChecked = e.target.checked;
-    setShowSubcategoryAttachmentInput(isChecked);
-    if (!isChecked) {
-        handleRemoveSubcategoryAttachment(); // clear file if unchecked
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setAttachment(e.target.files[0]);
-    }
-  };
-
-  const handleRemoveCategoryAttachment = () => {
-    setAttachment(undefined);
-    if (categoryAttachmentInputRef.current) {
-        categoryAttachmentInputRef.current.value = '';
-    }
-  };
-  
-  const handleSubcategoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSubcategoryAttachment(e.target.files[0]);
-    }
+    setSubcategoryId('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -85,8 +143,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
       return;
     }
     
+    if (selectedSubcategory?.attachmentRequired && !subcategoryAttachment) {
+      setError(`An attachment is required for the '${selectedSubcategory.name}' subcategory.`);
+      return;
+    }
+    
     if (!categoryId || !amount || !description || !projectId || !siteId) {
-        setError("All fields are required.");
+        setError("Please fill out all required fields.");
         return;
     }
 
@@ -103,173 +166,68 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
     onClose();
   };
 
+  const formInputStyle = "relative block w-full px-4 py-3 bg-neutral-900/50 border border-neutral-700 text-neutral-50 placeholder-neutral-400 rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
-          <label htmlFor="category" className="block text-sm font-medium text-neutral-700">Category</label>
-          <select
-            id="category"
-            value={categoryId}
-            onChange={handleCategoryChange}
-            required
-            className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          >
+          <label htmlFor="category" className="block text-sm font-medium text-neutral-300">Category</label>
+          <select id="category" value={categoryId} onChange={handleCategoryChange} required className={formInputStyle}>
             {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
           </select>
         </div>
 
         {subcategoriesForSelectedCategory.length > 0 && (
           <div>
-              <label htmlFor="subcategory" className="block text-sm font-medium text-neutral-700">Subcategory (Optional)</label>
-              <select
-                id="subcategory"
-                value={subcategoryId}
-                onChange={handleSubcategoryChange}
-                className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              >
-                  <option value="">-- No Subcategory --</option>
+              <label htmlFor="subcategory" className="block text-sm font-medium text-neutral-300">Subcategory</label>
+              <select id="subcategory" value={subcategoryId} onChange={(e) => setSubcategoryId(e.target.value)} className={formInputStyle}>
+                  <option value="">None</option>
                   {subcategoriesForSelectedCategory.map(subcat => <option key={subcat.id} value={subcat.id}>{subcat.name}</option>)}
               </select>
           </div>
         )}
       
         <div>
-          <label htmlFor="projectId" className="block text-sm font-medium text-neutral-700">Project Name</label>
-          <select
-            id="projectId"
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            required
-            className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          >
+          <label htmlFor="projectId" className="block text-sm font-medium text-neutral-300">Project Name</label>
+          <select id="projectId" value={projectId} onChange={(e) => setProjectId(e.target.value)} required className={formInputStyle}>
             {projects.map(proj => <option key={proj.id} value={proj.id}>{proj.name}</option>)}
           </select>
         </div>
 
          <div>
-          <label htmlFor="siteId" className="block text-sm font-medium text-neutral-700">Site/Place</label>
-          <select
-            id="siteId"
-            value={siteId}
-            onChange={(e) => setSiteId(e.target.value)}
-            required
-            className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          >
+          <label htmlFor="siteId" className="block text-sm font-medium text-neutral-300">Site/Place</label>
+          <select id="siteId" value={siteId} onChange={(e) => setSiteId(e.target.value)} required className={formInputStyle}>
             {sites.map(site => <option key={site.id} value={site.id}>{site.name}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <label htmlFor="amount" className="block text-sm font-medium text-neutral-700">Amount (₹)</label>
+        <label htmlFor="amount" className="block text-sm font-medium text-neutral-300">Amount (₹)</label>
         <div className="relative mt-1 rounded-md shadow-sm">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <span className="text-neutral-500 sm:text-sm">₹</span>
+                <span className="text-neutral-400 sm:text-sm">₹</span>
             </div>
-            <input
-                type="number"
-                id="amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-                className="block w-full py-2 pl-7 pr-12 border-neutral-300 rounded-md focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="0.00"
-            />
+            <input type="number" id="amount" value={amount} onChange={(e) => setAmount(e.target.value)} required className={`${formInputStyle} pl-7`} placeholder="0.00" />
         </div>
       </div>
       
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-neutral-700">Description</label>
-        <textarea
-          id="description"
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-          className="block w-full mt-1 border-neutral-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-        ></textarea>
+        <label htmlFor="description" className="block text-sm font-medium text-neutral-300">Description</label>
+        <textarea id="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} required className={formInputStyle}></textarea>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Category Attachment {selectedCategory?.attachmentRequired && <span className="text-accent-500">*</span>}</label>
-        <div className="flex items-center justify-center w-full px-6 pt-5 pb-6 mt-1 border-2 border-neutral-300 border-dashed rounded-lg">
-            <div className="space-y-1 text-center">
-                { !attachment && <PaperClipIcon className="w-12 h-12 mx-auto text-neutral-400"/> }
-                <div className="flex justify-center text-sm text-neutral-600">
-                    <label htmlFor="file-upload" className="relative font-medium bg-white rounded-md cursor-pointer text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
-                        <span>Upload a file</span>
-                        <input ref={categoryAttachmentInputRef} id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
-                    </label>
-                    {!attachment && <p className="pl-1">or drag and drop</p>}
-                </div>
-                 {attachment ? (
-                    <div className="flex items-center justify-center pt-1 text-xs text-neutral-600">
-                        <PaperClipIcon className="w-4 h-4 mr-1"/>
-                        <span className="font-medium truncate">{attachment.name}</span>
-                        <button type="button" onClick={handleRemoveCategoryAttachment} className="ml-2 text-accent-500 hover:text-accent-700">
-                            <XCircleIcon className="w-4 h-4" />
-                        </button>
-                    </div>
-                 ) : <p className="text-xs text-neutral-500">PNG, JPG, PDF up to 10MB</p>}
-            </div>
-        </div>
-      </div>
+      <FileInput label="Category Attachment" file={attachment} setFile={setAttachment} inputRef={categoryAttachmentInputRef} isRequired={selectedCategory?.attachmentRequired} />
       
       {subcategoryId && (
-        <div className="p-4 space-y-4 border border-neutral-200 rounded-lg bg-neutral-50">
-            <div className="relative flex items-start">
-                <div className="flex items-center h-5">
-                    <input 
-                        id="add-sub-attachment-toggle" 
-                        name="add-sub-attachment-toggle" 
-                        type="checkbox" 
-                        checked={showSubcategoryAttachmentInput} 
-                        onChange={handleToggleSubcategoryAttachment}
-                        className="w-4 h-4 border-neutral-300 rounded text-primary-600 focus:ring-primary-500"
-                    />
-                </div>
-                <div className="ml-3 text-sm">
-                    <label htmlFor="add-sub-attachment-toggle" className="font-medium text-neutral-700">
-                        Add Subcategory Attachment {selectedSubcategory?.attachmentRequired && <span className="text-accent-500">*</span>}
-                    </label>
-                    <p className="text-xs text-neutral-500">
-                        This attachment is optional for submission.
-                        {selectedSubcategory?.attachmentRequired && " (Recommended as per policy)"}
-                    </p>
-                </div>
-            </div>
-            
-            {showSubcategoryAttachmentInput && (
-                <div className="flex items-center justify-center w-full px-6 pt-5 pb-6 bg-white border-2 border-neutral-300 border-dashed rounded-lg">
-                    <div className="space-y-1 text-center">
-                        { !subcategoryAttachment && <PaperClipIcon className="w-12 h-12 mx-auto text-neutral-400"/> }
-                        <div className="flex justify-center text-sm text-neutral-600">
-                            <label htmlFor="sub-file-upload" className="relative font-medium bg-white rounded-md cursor-pointer text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
-                                <span>Upload a file</span>
-                                <input ref={subcategoryAttachmentInputRef} id="sub-file-upload" name="sub-file-upload" type="file" className="sr-only" onChange={handleSubcategoryFileChange} />
-                            </label>
-                            {!subcategoryAttachment && <p className="pl-1">or drag and drop</p>}
-                        </div>
-                        {subcategoryAttachment ? (
-                            <div className="flex items-center justify-center pt-1 text-xs text-neutral-600">
-                                <PaperClipIcon className="w-4 h-4 mr-1"/>
-                                <span className="font-medium truncate">{subcategoryAttachment.name}</span>
-                                <button type="button" onClick={handleRemoveSubcategoryAttachment} className="ml-2 text-accent-500 hover:text-accent-700">
-                                    <XCircleIcon className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ) : <p className="text-xs text-neutral-500">PNG, JPG, PDF up to 10MB</p>}
-                    </div>
-                </div>
-            )}
-        </div>
+        <FileInput label="Subcategory Attachment" file={subcategoryAttachment} setFile={setSubcategoryAttachment} inputRef={subcategoryAttachmentInputRef} isRequired={selectedSubcategory?.attachmentRequired} />
       )}
 
-      {error && <p className="text-sm text-accent-600">{error}</p>}
+      {error && <p className="text-sm text-accent-danger">{error}</p>}
       
-      <div className="pt-4 text-right space-x-2">
-        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md shadow-sm hover:bg-neutral-50">Cancel</button>
-        <button type="submit" className="px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-gradient-to-r from-secondary-500 to-primary-500 hover:from-secondary-600 hover:to-primary-600">Submit Request</button>
+      <div className="pt-4 flex justify-end items-center space-x-3">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-neutral-200 bg-neutral-800/50 border border-neutral-700 rounded-md hover:bg-neutral-700/50 transition-colors">Cancel</button>
+        <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-md hover:opacity-90 transition-opacity">Submit Request</button>
       </div>
     </form>
   );

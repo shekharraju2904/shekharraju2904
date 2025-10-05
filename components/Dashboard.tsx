@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site } from '../types';
-import Header from './Header';
+import SideNav from './SideNav';
 import AdminPanel from './AdminPanel';
 import RequestorDashboard from './RequestorDashboard';
 import VerifierDashboard from './VerifierDashboard';
 import ApproverDashboard from './ApproverDashboard';
 import OverviewDashboard from './OverviewDashboard';
-import AttachmentsDashboard from './AttachmentsDashboard';
 import ReportsDashboard from './ReportsDashboard';
 import ProfilePage from './ProfilePage';
 import Modal from './Modal';
 import ExpenseForm from './ExpenseForm';
-import { PlusIcon } from './Icons';
 import ExpenseCard from './ExpenseCard';
 import AllTransactionsDashboard from './AllTransactionsDashboard';
+import LoadingSpinner from './LoadingSpinner';
 
 interface DashboardProps {
   currentUser: User;
@@ -24,6 +23,7 @@ interface DashboardProps {
   expenses: Expense[];
   deletedExpenses: Expense[];
   auditLog: AuditLogItem[];
+  isLoading: boolean;
   onLogout: () => void;
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
   onUpdateExpenseStatus: (expenseId: string, newStatus: Status, comment?: string) => void;
@@ -56,197 +56,66 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
   const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onSoftDeleteExpense, ...adminProps } = props;
-  const [activeTab, setActiveTab] = useState('overview');
-  const [adminPanelTab, setAdminPanelTab] = useState('users');
+  const [activeView, setActiveView] = useState('overview');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
   const [modalExpense, setModalExpense] = useState<Expense | null>(null);
 
-  const handleSelectAdminItem = (itemType: 'category' | 'project' | 'site') => {
-    setActiveTab('tasks');
-    switch (itemType) {
-        case 'category':
-            setAdminPanelTab('categories');
-            break;
-        case 'project':
-            setAdminPanelTab('projects');
-            break;
-        case 'site':
-            setAdminPanelTab('sites');
-            break;
+  const renderActiveView = () => {
+    if (props.isLoading) {
+      return <div className="flex items-center justify-center w-full h-full"><LoadingSpinner /></div>;
     }
-  };
+    
+    const requestorExpenses = expenses.filter(e => e.requestorId === currentUser.id);
+    const verifierExpenses = expenses.filter(e => e.status === Status.PENDING_VERIFICATION);
+    const approverExpenses = expenses.filter(e => e.status === Status.PENDING_APPROVAL);
 
+    switch (activeView) {
+      case 'overview':
+        const overviewExpenses = currentUser.role === Role.REQUESTOR ? requestorExpenses : expenses;
+        return <OverviewDashboard expenses={overviewExpenses} categories={categories} projects={projects} sites={sites} />;
+      
+      case 'tasks':
+        switch (currentUser.role) {
+          case Role.REQUESTOR:
+            return <RequestorDashboard currentUser={currentUser} expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} onViewExpense={setModalExpense} onNewExpenseClick={() => setNewExpenseModalOpen(true)} />;
+          case Role.VERIFIER:
+            return <VerifierDashboard currentUser={currentUser} expenses={verifierExpenses} categories={categories} projects={projects} sites={sites} onUpdateExpenseStatus={onUpdateExpenseStatus} onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus} onToggleExpensePriority={adminProps.onToggleExpensePriority} onViewExpense={setModalExpense} />;
+          case Role.APPROVER:
+            return <ApproverDashboard currentUser={currentUser} expenses={approverExpenses} categories={categories} projects={projects} sites={sites} onUpdateExpenseStatus={onUpdateExpenseStatus} onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus} onToggleExpensePriority={adminProps.onToggleExpensePriority} onViewExpense={setModalExpense} />;
+          default:
+            return <p>No tasks available for your role.</p>;
+        }
 
-  const getRoleSpecificTabName = () => {
-    switch(currentUser.role) {
-      case Role.ADMIN: return 'Admin Panel';
-      case Role.REQUESTOR: return 'My Expenses';
-      case Role.VERIFIER: return 'Verification Queue';
-      case Role.APPROVER: return 'Approval Queue';
-      default: return 'My Tasks';
-    }
-  };
+      case 'all_transactions':
+        return <AllTransactionsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} currentUser={currentUser} onViewExpense={setModalExpense} onSoftDeleteExpense={onSoftDeleteExpense} />;
 
-  const renderRoleSpecificContent = () => {
-    switch (currentUser.role) {
-      case Role.ADMIN:
-        return (
-          <AdminPanel 
-            {...adminProps}
-            expenses={expenses}
-            categories={categories}
-            projects={projects}
-            sites={sites}
-            activeAdminTab={adminPanelTab}
-            setActiveAdminTab={setAdminPanelTab}
-            onTriggerBackup={props.onTriggerBackup}
-          />
-        );
-      case Role.REQUESTOR:
-        const myExpenses = expenses.filter(e => e.requestorId === currentUser.id);
-        return (
-          <RequestorDashboard 
-            currentUser={currentUser}
-            expenses={myExpenses}
-            categories={categories}
-            projects={projects}
-            sites={sites}
-            onViewExpense={setModalExpense}
-          />
-        );
-      case Role.VERIFIER:
-        const toVerify = expenses.filter(e => e.status === Status.PENDING_VERIFICATION);
-        return (
-          <VerifierDashboard
-            currentUser={currentUser}
-            expenses={toVerify}
-            categories={categories}
-            projects={projects}
-            sites={sites}
-            onUpdateExpenseStatus={onUpdateExpenseStatus}
-            onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus}
-            onToggleExpensePriority={adminProps.onToggleExpensePriority}
-            onViewExpense={setModalExpense}
-          />
-        );
-      case Role.APPROVER:
-        const toApprove = expenses.filter(e => e.status === Status.PENDING_APPROVAL);
-        return (
-          <ApproverDashboard
-            currentUser={currentUser}
-            expenses={toApprove}
-            categories={categories}
-            projects={projects}
-            sites={sites}
-            onUpdateExpenseStatus={onUpdateExpenseStatus}
-            onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus}
-            onToggleExpensePriority={adminProps.onToggleExpensePriority}
-            onViewExpense={setModalExpense}
-          />
-        );
+      case 'reports':
+        return <ReportsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} />;
+
+      case 'profile':
+        return <ProfilePage user={currentUser} onUpdateProfile={props.onUpdateProfile} onUpdatePassword={props.onUpdatePassword} />;
+
+      case 'admin':
+        if (currentUser.role === Role.ADMIN) {
+          return <AdminPanel {...adminProps} expenses={expenses} categories={categories} projects={projects} sites={sites} onTriggerBackup={props.onTriggerBackup} />;
+        }
+        return null;
+
       default:
-        return <p>You do not have a role assigned.</p>;
+        return <OverviewDashboard expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} />;
     }
   };
-
-  const overviewExpenses = currentUser.role === Role.REQUESTOR
-    ? expenses.filter(e => e.requestorId === currentUser.id)
-    : expenses;
-
-  const canSeeAttachmentsTab = [Role.ADMIN, Role.VERIFIER, Role.APPROVER].includes(currentUser.role);
-  const canSeeReportsTab = [Role.ADMIN, Role.VERIFIER, Role.APPROVER].includes(currentUser.role);
-
-  const TabButton = ({ tabName, label }: {tabName: string; label: string}) => (
-    <button
-      onClick={() => setActiveTab(tabName)}
-      className={`${activeTab === tabName ? 'bg-white text-primary-600 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'} rounded-md py-2 px-3 font-medium text-sm transition-all duration-200`}
-    >
-      {label}
-    </button>
-  )
 
   return (
-    <div className="min-h-screen bg-neutral-200">
-      <Header 
-        user={currentUser} 
+    <div className="flex w-full h-screen">
+      <SideNav 
+        user={currentUser}
         onLogout={onLogout}
-        expenses={expenses}
-        categories={categories}
-        projects={projects}
-        sites={sites}
-        onSelectExpense={setModalExpense}
-        onSelectAdminItem={handleSelectAdminItem}
+        activeView={activeView}
+        setActiveView={setActiveView}
       />
-      <main className="py-10">
-        <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="pb-5 sm:flex sm:items-baseline sm:justify-between">
-            <div className="p-1.5 bg-neutral-100 rounded-lg">
-                <nav className="flex space-x-1" aria-label="Tabs">
-                  <TabButton tabName="overview" label="Overview" />
-                  <TabButton tabName="tasks" label={getRoleSpecificTabName()} />
-                  <TabButton tabName="all_transactions" label="All Transactions" />
-                  {canSeeAttachmentsTab && <TabButton tabName="attachments" label="Attachments" />}
-                  {canSeeReportsTab && <TabButton tabName="reports" label="Reports" />}
-                  <TabButton tabName="profile" label="My Profile" />
-                </nav>
-            </div>
-             {activeTab === 'tasks' && currentUser.role === Role.REQUESTOR && (
-              <div className="mt-3 sm:ml-4 sm:mt-0">
-                <button
-                  type="button"
-                  onClick={() => setNewExpenseModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white transition-transform duration-200 transform rounded-md shadow-sm bg-gradient-to-r from-secondary-500 to-primary-500 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
-                >
-                  <PlusIcon className="w-5 h-5 mr-2" />
-                  Submit New Expense
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="mt-8">
-            {activeTab === 'overview' && (
-              <OverviewDashboard 
-                expenses={overviewExpenses}
-                categories={categories}
-                projects={projects}
-                sites={sites}
-              />
-            )}
-            {activeTab === 'tasks' && renderRoleSpecificContent()}
-            {activeTab === 'all_transactions' && (
-              <AllTransactionsDashboard
-                expenses={expenses}
-                categories={categories}
-                projects={projects}
-                sites={sites}
-                currentUser={currentUser}
-                onViewExpense={setModalExpense}
-                onSoftDeleteExpense={onSoftDeleteExpense}
-              />
-            )}
-            {activeTab === 'attachments' && canSeeAttachmentsTab && (
-              <AttachmentsDashboard
-                expenses={expenses}
-                categories={categories}
-              />
-            )}
-             {activeTab === 'reports' && canSeeReportsTab && (
-              <ReportsDashboard
-                expenses={expenses}
-                categories={categories}
-                projects={projects}
-                sites={sites}
-              />
-            )}
-             {activeTab === 'profile' && (
-              <ProfilePage
-                user={currentUser}
-                onUpdateProfile={props.onUpdateProfile}
-                onUpdatePassword={props.onUpdatePassword}
-              />
-            )}
-          </div>
-        </div>
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 md:ml-20 lg:ml-64">
+        {renderActiveView()}
       </main>
 
       <Modal isOpen={isNewExpenseModalOpen} onClose={() => setNewExpenseModalOpen(false)} title="New Expense Request">
@@ -260,7 +129,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       </Modal>
 
       {modalExpense && (
-        <Modal isOpen={!!modalExpense} onClose={() => setModalExpense(null)} title="Expense Details">
+        <Modal isOpen={!!modalExpense} onClose={() => setModalExpense(null)} title={`Expense ${modalExpense.referenceNumber}`}>
             <ExpenseCard 
                 expense={modalExpense} 
                 categories={categories}

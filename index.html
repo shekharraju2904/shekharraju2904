@@ -6,16 +6,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Expense Approval System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
             colors: {
-              primary: tailwind.theme.colors.indigo,
-              secondary: tailwind.theme.colors.sky,
-              accent: tailwind.theme.colors.rose,
-              neutral: tailwind.theme.colors.slate,
-              success: tailwind.theme.colors.emerald,
+              primary: {
+                DEFAULT: '#3B82F6', // blue-500
+                dark: '#1E3A8A', // blue-800
+                light: '#93C5FD', // blue-300
+              },
+              secondary: {
+                DEFAULT: '#14B8A6', // teal-500
+              },
+              accent: {
+                DEFAULT: '#F59E0B', // amber-500
+                danger: '#EF4444', // red-500
+              },
+              neutral: {
+                50: '#F8FAFC',
+                100: '#F1F5F9',
+                200: '#E2E8F0',
+                300: '#CBD5E1',
+                400: '#94A3B8',
+                500: '#64748B',
+                600: '#475569',
+                700: '#334155',
+                800: '#1E293B',
+                900: '#0F172A',
+              },
+              success: {
+                DEFAULT: '#10B981', // emerald-500
+              },
             }
           }
         }
@@ -34,11 +62,45 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   body {
-    background-color: #e2e8f0; /* slate-200 */
+    font-family: 'Inter', sans-serif;
+    background-color: #0F172A; /* neutral-900 */
+    color: #F8FAFC; /* neutral-50 */
+    overflow-x: hidden;
   }
+  .background-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+  }
+  .gradient-bg {
+    width: 200%;
+    height: 200%;
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    background: radial-gradient(circle at 20% 20%, #1E3A8A, #0F172A 40%),
+                radial-gradient(circle at 80% 70%, #14B8A6, #0F172A 35%);
+    animation: gradient-move 20s ease infinite;
+  }
+
+  @keyframes gradient-move {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(10%, 10%); }
+    100% { transform: translate(0, 0); }
+  }
+
   @media print {
-    body * {
+    body, body * {
       visibility: hidden;
+      background: #fff !important;
+      color: #000 !important;
+    }
+    .background-container {
+      display: none;
     }
     .printable-modal, .printable-modal * {
       visibility: visible;
@@ -64,6 +126,9 @@
 </style>
 </head>
   <body>
+    <div class="background-container">
+        <div class="gradient-bg"></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

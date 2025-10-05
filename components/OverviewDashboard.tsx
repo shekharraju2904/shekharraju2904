@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Expense, Category, Status, Project, Site, Subcategory } from '../types';
-import { DocumentArrowDownIcon } from './Icons';
+import { PlusIcon, CheckCircleIcon, XCircleIcon, Hourglass } from './Icons';
+
+declare const Chart: any;
 
 interface OverviewDashboardProps {
   expenses: Expense[];
@@ -9,20 +11,130 @@ interface OverviewDashboardProps {
   sites: Site[];
 }
 
-const StatCard: React.FC<{ title: string; value: string | number; }> = ({ title, value }) => (
-    <div className="px-4 py-5 overflow-hidden bg-white rounded-xl shadow-lg sm:p-6">
-        <dt className="text-sm font-medium text-neutral-500 truncate">{title}</dt>
-        <dd className="mt-1 text-3xl font-semibold tracking-tight text-neutral-900">{value}</dd>
+const AnimatedCounter: React.FC<{ end: number, duration?: number, isCurrency?: boolean }> = ({ end, duration = 1500, isCurrency = false }) => {
+    const [count, setCount] = useState(0);
+    const frameRate = 1000 / 60;
+    const totalFrames = Math.round(duration / frameRate);
+
+    useEffect(() => {
+        let frame = 0;
+        const counter = setInterval(() => {
+            frame++;
+            const progress = frame / totalFrames;
+            const currentCount = Math.round(end * progress);
+            setCount(currentCount);
+
+            if (frame === totalFrames) {
+                clearInterval(counter);
+                setCount(end); 
+            }
+        }, frameRate);
+
+        return () => clearInterval(counter);
+    }, [end, duration, totalFrames, frameRate]);
+
+    const formattedValue = isCurrency ? `₹${count.toLocaleString('en-IN')}` : count.toLocaleString('en-IN');
+    return <>{formattedValue}</>;
+};
+
+const StatCard: React.FC<{ title: string; value: number; isCurrency?: boolean }> = ({ title, value, isCurrency = false }) => (
+    <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+        <dt className="text-sm font-medium text-neutral-400 truncate">{title}</dt>
+        <dd className="mt-1 text-3xl font-semibold tracking-tight text-neutral-50">
+           <AnimatedCounter end={value} isCurrency={isCurrency} />
+        </dd>
     </div>
 );
 
 const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categories, projects, sites }) => {
-    
-    const [filterProject, setFilterProject] = useState('All');
-    const [filterSite, setFilterSite] = useState('All');
-    const [filterCategory, setFilterCategory] = useState('All');
-    const [filterSubcategory, setFilterSubcategory] = useState('All');
-    const [subcategoriesForFilter, setSubcategoriesForFilter] = useState<Subcategory[]>([]);
+    const categoryChartRef = useRef<HTMLCanvasElement>(null);
+    const monthlyChartRef = useRef<HTMLCanvasElement>(null);
+
+    const chartColors = ['#3B82F6', '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B'];
+
+    useEffect(() => {
+        let categoryChart: any;
+        let monthlyChart: any;
+        Chart.defaults.color = '#94A3B8';
+        Chart.defaults.font.family = 'Inter';
+
+        if (categoryChartRef.current) {
+            const ctx = categoryChartRef.current.getContext('2d');
+            const expensesByCategory = categories.map(category => {
+                const total = expenses
+                    .filter(e => e.categoryId === category.id && e.status === Status.APPROVED)
+                    .reduce((sum, e) => sum + e.amount, 0);
+                return { name: category.name, total };
+            }).filter(c => c.total > 0).sort((a,b) => b.total - a.total);
+
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: expensesByCategory.map(c => c.name),
+                    datasets: [{
+                        data: expensesByCategory.map(c => c.total),
+                        backgroundColor: chartColors,
+                        borderColor: '#0F172A',
+                        borderWidth: 4,
+                        hoverOffset: 8
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    cutout: '70%',
+                    plugins: { 
+                        legend: { position: 'right', labels: { boxWidth: 12, padding: 15 } }, 
+                        title: { display: true, text: 'Approved Spending by Category', font: { size: 16 }, color: '#F8FAFC', padding: { bottom: 20 } } 
+                    } 
+                }
+            });
+        }
+        
+        if (monthlyChartRef.current) {
+            const ctx = monthlyChartRef.current.getContext('2d');
+            const monthlyData: { [key: string]: number } = {};
+            expenses.forEach(expense => {
+                if (expense.status === Status.APPROVED) {
+                    const month = new Date(expense.submittedAt).toLocaleString('default', { month: 'short', year: 'numeric' });
+                    if (!monthlyData[month]) monthlyData[month] = 0;
+                    monthlyData[month] += expense.amount;
+                }
+            });
+
+            const sortedMonths = Object.keys(monthlyData).sort((a,b) => new Date(a).getTime() - new Date(b).getTime());
+
+            monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{
+                        label: 'Total Approved Amount (₹)',
+                        data: sortedMonths.map(month => monthlyData[month]),
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(59, 130, 246, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false }, title: { display: true, text: 'Monthly Spending Trend', font: {size: 16}, color: '#F8FAFC', padding: { bottom: 20 } } },
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+
+        return () => {
+            if (categoryChart) categoryChart.destroy();
+            if (monthlyChart) monthlyChart.destroy();
+        };
+    }, [expenses, categories]);
+
 
     const totalAmount = expenses.reduce((acc, exp) => acc + exp.amount, 0);
     const pendingCount = expenses.filter(e => e.status === Status.PENDING_APPROVAL || e.status === Status.PENDING_VERIFICATION).length;
@@ -31,158 +143,88 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categor
 
     const recentExpenses = [...expenses].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()).slice(0, 5);
     const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || 'Unknown';
-    
-    const handleCategoryFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const catId = e.target.value;
-        setFilterCategory(catId);
-        setFilterSubcategory('All');
-        if (catId === 'All') {
-            setSubcategoriesForFilter([]);
-        } else {
-            const selectedCat = categories.find(c => c.id === catId);
-            setSubcategoriesForFilter(selectedCat?.subcategories || []);
-        }
-    };
 
-    const handleDownloadCSV = () => {
-        const filteredForCSV = expenses.filter(exp => {
-            if (filterProject !== 'All' && exp.projectId !== filterProject) return false;
-            if (filterSite !== 'All' && exp.siteId !== filterSite) return false;
-            if (filterCategory !== 'All' && exp.categoryId !== filterCategory) return false;
-            if (filterSubcategory !== 'All' && exp.subcategoryId !== filterSubcategory) return false;
-            return true;
-        });
-
-        const header = ['ID', 'Reference', 'Requestor', 'Project Name', 'Site/Place', 'Category', 'Subcategory', 'Amount', 'Description', 'Status', 'Submitted At'];
-        const rows = filteredForCSV.map(exp => {
-            const category = categories.find(c => c.id === exp.categoryId);
-            const categoryName = category?.name || '';
-            const subcategoryName = category?.subcategories?.find(sc => sc.id === exp.subcategoryId)?.name || '';
-            const projectName = projects.find(p => p.id === exp.projectId)?.name || '';
-            const siteName = sites.find(s => s.id === exp.siteId)?.name || '';
-            return [
-                exp.id,
-                exp.referenceNumber,
-                exp.requestorName,
-                projectName,
-                siteName,
-                categoryName,
-                subcategoryName,
-                exp.amount,
-                `"${exp.description.replace(/"/g, '""')}"`, // Escape double quotes
-                exp.status,
-                new Date(exp.submittedAt).toISOString()
-            ].join(',');
-        });
-
-        const csvContent = [header.join(','), ...rows].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        if (link.href) {
-            URL.revokeObjectURL(link.href);
-        }
-        const date = new Date().toISOString().split('T')[0];
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `expenses_export_${date}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    const StatusBadge = ({ status }: { status: Status }) => {
-        const baseClasses = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full';
-        switch (status) {
-          case Status.APPROVED: return <span className={`${baseClasses} bg-success-100 text-success-800`}>{status}</span>;
-          case Status.REJECTED: return <span className={`${baseClasses} bg-accent-100 text-accent-800`}>{status}</span>;
-          case Status.PENDING_APPROVAL: return <span className={`${baseClasses} bg-amber-100 text-amber-800`}>{status}</span>;
-          case Status.PENDING_VERIFICATION: return <span className={`${baseClasses} bg-secondary-100 text-secondary-800`}>{status}</span>;
-          default: return <span className={`${baseClasses} bg-neutral-100 text-neutral-800`}>{status}</span>;
-        }
+    const StatusIcon = ({ status }: { status: Status }) => {
+         const styles = {
+          [Status.APPROVED]: 'bg-success/20 text-success',
+          [Status.REJECTED]: 'bg-accent-danger/20 text-accent-danger',
+          [Status.PENDING_APPROVAL]: 'bg-accent/20 text-accent',
+          [Status.PENDING_VERIFICATION]: 'bg-primary/20 text-primary-light',
+        };
+        const icons = {
+            [Status.APPROVED]: <CheckCircleIcon />,
+            [Status.REJECTED]: <XCircleIcon />,
+            [Status.PENDING_APPROVAL]: <Hourglass />,
+            [Status.PENDING_VERIFICATION]: <Hourglass />,
+        };
+        const style = styles[status] || 'bg-neutral-500/20 text-neutral-300';
+        return <div className={`flex items-center justify-center w-10 h-10 rounded-full ${style}`}>{icons[status]}</div>;
     };
 
 
     return (
-        <div>
-            <h2 className="text-2xl font-bold tracking-tight text-neutral-900">System Overview</h2>
+        <div className="space-y-8">
+            <div>
+                <h1 className="text-3xl font-bold text-neutral-50">Overview</h1>
+                <p className="mt-1 text-neutral-400">A summary of all expense activities in the system.</p>
+            </div>
             
-            <div className="p-4 my-6 bg-white rounded-xl shadow-lg">
-                <h3 className="text-base font-semibold leading-6 text-neutral-900">Export Options</h3>
-                <div className="grid grid-cols-1 gap-4 mt-2 sm:grid-cols-2 lg:grid-cols-5">
-                    <div>
-                        <label htmlFor="filter-project" className="block text-sm font-medium text-neutral-700">Project</label>
-                        <select id="filter-project" value={filterProject} onChange={e => setFilterProject(e.target.value)} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                            <option value="All">All Projects</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                    </div>
-                     <div>
-                        <label htmlFor="filter-site" className="block text-sm font-medium text-neutral-700">Site/Place</label>
-                        <select id="filter-site" value={filterSite} onChange={e => setFilterSite(e.target.value)} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                            <option value="All">All Sites</option>
-                            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
-                     <div>
-                        <label htmlFor="filter-category" className="block text-sm font-medium text-neutral-700">Category</label>
-                        <select id="filter-category" value={filterCategory} onChange={handleCategoryFilterChange} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                            <option value="All">All Categories</option>
-                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="filter-subcategory" className="block text-sm font-medium text-neutral-700">Subcategory</label>
-                        <select id="filter-subcategory" value={filterSubcategory} onChange={e => setFilterSubcategory(e.target.value)} disabled={filterCategory === 'All'} className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm disabled:bg-neutral-100 disabled:cursor-not-allowed">
-                            <option value="All">All Subcategories</option>
-                            {subcategoriesForFilter.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                        </select>
-                    </div>
-                    <div className="self-end">
-                        <button
-                            type="button"
-                            onClick={handleDownloadCSV}
-                            className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-semibold text-white transition-transform duration-200 transform rounded-md shadow-sm bg-gradient-to-r from-secondary-500 to-primary-500 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
-                        >
-                            <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-                            Download CSV
-                        </button>
-                    </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Total Expenses" value={expenses.length} />
+                <StatCard title="Total Value" value={totalAmount} isCurrency />
+                <StatCard title="Pending Requests" value={pendingCount} />
+                <StatCard title="Approved / Rejected" value={approvedCount} />
+            </div>
+
+             <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
+                 <div className="lg:col-span-3 p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+                     <canvas ref={monthlyChartRef}></canvas>
+                </div>
+                <div className="lg:col-span-2 p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+                    <canvas ref={categoryChartRef}></canvas>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 mt-6 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard title="Total Expenses" value={expenses.length} />
-                <StatCard title="Total Value" value={`₹${totalAmount.toLocaleString('en-IN')}`} />
-                <StatCard title="Pending Requests" value={pendingCount} />
-                <StatCard title="Approved / Rejected" value={`${approvedCount} / ${rejectedCount}`} />
-            </div>
-
-            <div className="p-6 mt-8 bg-white rounded-xl shadow-lg">
-                <h3 className="text-lg font-medium leading-6 text-neutral-900">Recent Activity</h3>
+            <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+                <h3 className="text-lg font-semibold text-neutral-100">Recent Activity</h3>
                 <div className="flow-root mt-6">
                     {recentExpenses.length > 0 ? (
-                    <ul className="-my-5 divide-y divide-neutral-200">
-                        {recentExpenses.map(expense => (
-                        <li key={expense.id} className="py-4">
-                            <div className="flex items-center space-x-4">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-neutral-900 truncate">
-                                    <span className="font-mono">{expense.referenceNumber}</span> - {expense.requestorName}
-                                </p>
-                                <p className="text-sm text-neutral-500 truncate">
-                                    Project: {getProjectName(expense.projectId)} on {new Date(expense.submittedAt).toLocaleDateString()}
-                                </p>
-                            </div>
-                            <div className="text-right">
-                               <p className="mb-1 text-sm font-medium text-neutral-900">₹{expense.amount.toLocaleString('en-IN')}</p>
-                               <StatusBadge status={expense.status} />
-                            </div>
+                    <ul className="-my-5">
+                        {recentExpenses.map((expense, index) => (
+                        <li key={expense.id} className="py-5">
+                            <div className="relative">
+                                {index !== recentExpenses.length -1 && <span className="absolute top-5 left-5 -ml-px h-full w-0.5 bg-neutral-700" aria-hidden="true" />}
+                                <div className="relative flex items-start space-x-3">
+                                    <div>
+                                        <StatusIcon status={expense.status} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div>
+                                            <div className="text-sm">
+                                                <span className="font-medium text-neutral-100">{expense.requestorName}</span>
+                                                <span className="text-neutral-400"> submitted a request</span>
+                                            </div>
+                                            <p className="mt-0.5 text-sm text-neutral-500">
+                                                On {new Date(expense.submittedAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <div className="mt-2 text-sm text-neutral-300">
+                                            <p>
+                                               <span className="font-mono text-primary-light">{expense.referenceNumber}</span> for project <span className="font-semibold">{getProjectName(expense.projectId)}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                     <div className="text-right text-sm whitespace-nowrap text-neutral-300">
+                                        <span className="font-semibold text-lg">₹{expense.amount.toLocaleString('en-IN')}</span>
+                                    </div>
+                                </div>
                             </div>
                         </li>
                         ))}
                     </ul>
                     ) : (
-                         <div className="py-8 text-center">
-                            <p className="text-sm text-neutral-500">No expense activity to show.</p>
+                         <div className="py-8 text-center border-2 border-dashed rounded-lg border-neutral-700">
+                            <p className="text-sm text-neutral-400">No expense activity to show.</p>
                         </div>
                     )}
                 </div>
