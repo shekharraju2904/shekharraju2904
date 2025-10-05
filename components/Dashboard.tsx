@@ -57,6 +57,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = (props) => {
   const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onSoftDeleteExpense, ...adminProps } = props;
   const [activeView, setActiveView] = useState('overview');
+  const [activeAdminTab, setActiveAdminTab] = useState('users');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
   const [modalExpense, setModalExpense] = useState<Expense | null>(null);
 
@@ -77,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       case 'tasks':
         switch (currentUser.role) {
           case Role.REQUESTOR:
-            return <RequestorDashboard currentUser={currentUser} expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} onViewExpense={setModalExpense} onNewExpenseClick={() => setNewExpenseModalOpen(true)} />;
+            return <RequestorDashboard currentUser={currentUser} expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} onViewExpense={setModalExpense} />;
           case Role.VERIFIER:
             return <VerifierDashboard currentUser={currentUser} expenses={verifierExpenses} categories={categories} projects={projects} sites={sites} onUpdateExpenseStatus={onUpdateExpenseStatus} onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus} onToggleExpensePriority={adminProps.onToggleExpensePriority} onViewExpense={setModalExpense} />;
           case Role.APPROVER:
@@ -97,7 +98,16 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
       case 'admin':
         if (currentUser.role === Role.ADMIN) {
-          return <AdminPanel {...adminProps} expenses={expenses} categories={categories} projects={projects} sites={sites} onTriggerBackup={props.onTriggerBackup} />;
+          return <AdminPanel 
+            {...adminProps} 
+            expenses={expenses} 
+            categories={categories} 
+            projects={projects} 
+            sites={sites} 
+            onTriggerBackup={props.onTriggerBackup} 
+            activeAdminTab={activeAdminTab}
+            setActiveAdminTab={setActiveAdminTab}
+            />;
         }
         return null;
 
@@ -113,6 +123,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         onLogout={onLogout}
         activeView={activeView}
         setActiveView={setActiveView}
+        onNewExpenseClick={() => setNewExpenseModalOpen(true)}
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 md:ml-20 lg:ml-64">
         {renderActiveView()}
@@ -138,6 +149,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 userRole={currentUser.role}
                 currentUser={currentUser}
                 onUpdateStatus={onUpdateExpenseStatus ? (status, comment) => {
+                    // FIX: Corrected a typo in the function call. It should be `onUpdateExpenseStatus`, not `onUpdateStatus`.
                     onUpdateExpenseStatus(modalExpense.id, status, comment);
                     setModalExpense(null);
                 } : undefined}

@@ -76,81 +76,83 @@ const ApproverDashboard: React.FC<ApproverDashboardProps> = ({ currentUser, expe
     setBulkRejectionComment('');
   };
 
+  const formInputStyle = "relative block w-full px-4 py-3 bg-neutral-900/50 border border-neutral-700 text-neutral-50 placeholder-neutral-400 rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm";
+  const formLabelStyle = "block text-sm font-medium text-neutral-300";
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold tracking-tight text-neutral-900">Approval Queue</h2>
-      <p className="mt-1 text-sm text-neutral-600">Review and approve the following verified expense requests.</p>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-neutral-50">Approval Queue</h2>
+        <p className="mt-1 text-neutral-400">Review and approve the following verified expense requests.</p>
+      </div>
 
-      <div className="p-4 my-6 bg-white rounded-xl shadow-lg">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
            <div>
-            <label htmlFor="from-date" className="block text-sm font-medium text-neutral-700">From Date</label>
+            <label htmlFor="from-date" className={formLabelStyle}>From Date</label>
             <input 
               type="date" 
               id="from-date" 
               name="from" 
               value={dateRange.from} 
               onChange={handleDateChange} 
-              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
+              className={`${formInputStyle} mt-1`} />
           </div>
           <div>
-            <label htmlFor="to-date" className="block text-sm font-medium text-neutral-700">To Date</label>
+            <label htmlFor="to-date" className={formLabelStyle}>To Date</label>
             <input 
               type="date" 
               id="to-date" 
               name="to" 
               value={dateRange.to} 
               onChange={handleDateChange} 
-              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
+              className={`${formInputStyle} mt-1`} />
           </div>
            <div>
-            <label htmlFor="sort-by-approver" className="block text-sm font-medium text-neutral-700">Sort By</label>
+            <label htmlFor="sort-by-approver" className={formLabelStyle}>Sort By</label>
             <select 
               id="sort-by-approver" 
               name="sort"
               value={sortBy} 
               onChange={e => setSortBy(e.target.value as 'date' | 'priority')} 
-              className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              className={`${formInputStyle} pr-10 mt-1`}
             >
-              <option value="priority">Priority</option>
-              <option value="date">Submission Date</option>
+              <option value="priority" className="bg-neutral-900">Priority</option>
+              <option value="date" className="bg-neutral-900">Submission Date</option>
             </select>
           </div>
         </div>
       </div>
 
-      <div className="mt-8">
-        <ExpenseList
-          expenses={sortedExpenses}
-          categories={categories}
-          projects={projects}
-          sites={sites}
-          title="Pending Final Approval"
-          emptyMessage="There are no expenses waiting for final approval in the selected date range."
-          currentUser={currentUser}
-          onUpdateStatus={onUpdateExpenseStatus}
-          onToggleExpensePriority={onToggleExpensePriority}
-          isSelectionEnabled={true}
-          selectedExpenseIds={selectedExpenseIds}
-          onToggleSelection={handleToggleSelection}
-          onToggleSelectAll={handleToggleSelectAll}
-          onViewExpense={onViewExpense}
-        />
-      </div>
-
-       {selectedExpenseIds.length > 0 && (
-          <div className="fixed inset-x-0 bottom-0 z-10 p-4 bg-white/80 backdrop-blur-sm border-t border-neutral-200 shadow-lg">
-            <div className="flex items-center justify-between max-w-4xl mx-auto">
-              <span className="text-sm font-medium text-neutral-900">
+      <ExpenseList
+        expenses={sortedExpenses}
+        categories={categories}
+        projects={projects}
+        sites={sites}
+        title="Pending Final Approval"
+        emptyMessage="There are no expenses waiting for final approval in the selected date range."
+        currentUser={currentUser}
+        onUpdateStatus={onUpdateExpenseStatus}
+        onToggleExpensePriority={onToggleExpensePriority}
+        isSelectionEnabled={true}
+        selectedExpenseIds={selectedExpenseIds}
+        onToggleSelection={handleToggleSelection}
+        onToggleSelectAll={handleToggleSelectAll}
+        onViewExpense={onViewExpense}
+      />
+      
+      {selectedExpenseIds.length > 0 && (
+          <div className="fixed inset-x-0 bottom-0 z-30 p-4 bg-neutral-900/80 backdrop-blur-sm border-t border-white/10 shadow-lg md:bottom-4 md:inset-x-4 md:rounded-xl md:border">
+            <div className="flex items-center justify-between max-w-6xl mx-auto">
+              <span className="text-sm font-medium text-neutral-100">
                 {selectedExpenseIds.length} item(s) selected
               </span>
               <div className="space-x-3">
-                 <button onClick={() => setBulkRejectModalOpen(true)} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-accent-600 border border-transparent rounded-md shadow-sm hover:bg-accent-700">
+                 <button onClick={() => setBulkRejectModalOpen(true)} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-accent-danger/80 border border-transparent rounded-md shadow-sm hover:bg-accent-danger">
                     <XCircleIcon className="w-5 h-5 mr-2" />
                     Reject Selected
                 </button>
-                <button onClick={handleBulkApprove} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-success-600 border border-transparent rounded-md shadow-sm hover:bg-success-700">
+                <button onClick={handleBulkApprove} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-success/80 border border-transparent rounded-md shadow-sm hover:bg-success">
                     <CheckCircleIcon className="w-5 h-5 mr-2" />
                     Approve Selected
                 </button>
@@ -161,20 +163,20 @@ const ApproverDashboard: React.FC<ApproverDashboardProps> = ({ currentUser, expe
 
       <Modal isOpen={isBulkRejectModalOpen} onClose={() => setBulkRejectModalOpen(false)} title={`Reject ${selectedExpenseIds.length} Expense(s)`}>
         <div>
-          <label htmlFor="bulk-rejection-comment" className="block text-sm font-medium text-neutral-700">Rejection Reason</label>
+          <label htmlFor="bulk-rejection-comment" className={formLabelStyle}>Rejection Reason</label>
           <textarea
               id="bulk-rejection-comment"
               rows={3}
               value={bulkRejectionComment}
               onChange={(e) => setBulkRejectionComment(e.target.value)}
-              className="block w-full mt-1 border-neutral-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              className={`${formInputStyle} mt-1`}
               placeholder="Provide a single reason that will be applied to all selected expenses (optional)"
           ></textarea>
           <div className="flex justify-end mt-4 space-x-2">
-              <button onClick={() => setBulkRejectModalOpen(false)} className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md shadow-sm hover:bg-neutral-50">Cancel</button>
-              <button onClick={handleBulkReject} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-accent-600 border border-transparent rounded-md shadow-sm hover:bg-accent-700">
-                  Confirm Rejection
-              </button>
+            <button type="button" onClick={() => setBulkRejectModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-neutral-200 bg-neutral-800/50 border border-neutral-700 rounded-md hover:bg-neutral-700/50 transition-colors">Cancel</button>
+            <button onClick={handleBulkReject} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-accent-danger rounded-md shadow-sm hover:bg-accent-danger/90">
+                Confirm Rejection
+            </button>
           </div>
         </div>
       </Modal>

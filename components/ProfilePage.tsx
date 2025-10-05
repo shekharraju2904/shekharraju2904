@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
+import Avatar from './Avatar';
 
 interface ProfilePageProps {
   user: User;
@@ -34,72 +35,77 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateProfile, onUpda
     setConfirmPassword('');
   };
 
+  const formInputStyle = "relative block w-full px-4 py-3 bg-neutral-900/50 border border-neutral-700 text-neutral-50 placeholder-neutral-400 rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm";
+  const formLabelStyle = "block text-sm font-medium text-neutral-300";
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold tracking-tight text-neutral-900">My Profile</h2>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-neutral-50">My Profile</h2>
+        <p className="mt-1 text-neutral-400">Manage your personal information and password.</p>
+      </div>
       
-      <div className="grid grid-cols-1 gap-8 mt-6 md:grid-cols-2">
-        {/* Profile Information */}
-        <div className="p-6 bg-white rounded-xl shadow-lg">
-            <h3 className="text-lg font-semibold leading-6 text-neutral-900">Profile Information</h3>
-            <p className="mt-1 text-sm text-neutral-600">This information will be displayed publicly so be careful what you share.</p>
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+            <div className="flex items-center space-x-4">
+              <Avatar name={user.name} size="lg" />
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-100">{user.name}</h3>
+                <p className="text-sm text-neutral-400 capitalize">{user.role}</p>
+              </div>
+            </div>
             <form onSubmit={handleProfileSubmit} className="mt-6 space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-neutral-500">Email Address</label>
-                    <p className="mt-1 text-base text-neutral-900">{user.email}</p>
+                    <label className={formLabelStyle}>Email Address</label>
+                    <p className="mt-1 text-base text-neutral-100">{user.email}</p>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-neutral-500">Username</label>
-                    <p className="mt-1 text-base text-neutral-900">{user.username}</p>
+                    <label className={formLabelStyle}>Username</label>
+                    <p className="mt-1 text-base text-neutral-100">{user.username}</p>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-neutral-500">Role</label>
-                    <p className="mt-1 text-base text-neutral-900 capitalize">{user.role}</p>
-                </div>
-                <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-neutral-700">Full Name</label>
+                    <label htmlFor="name" className={formLabelStyle}>Full Name</label>
                     <input
                         type="text"
                         id="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="block w-full mt-1 border-neutral-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                        className={`${formInputStyle} mt-1`}
                     />
                 </div>
                 <div className="pt-2 text-right">
-                    <button type="submit" className="px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary-600 hover:bg-primary-700">Save Changes</button>
+                    <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-md hover:opacity-90 transition-opacity">Save Changes</button>
                 </div>
             </form>
         </div>
 
-        {/* Change Password */}
-        <div className="p-6 bg-white rounded-xl shadow-lg">
-            <h3 className="text-lg font-semibold leading-6 text-neutral-900">Change Password</h3>
-            <p className="mt-1 text-sm text-neutral-600">Update your password associated with your account.</p>
+        <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+            <h3 className="text-lg font-semibold text-neutral-100">Change Password</h3>
+            <p className="mt-1 text-sm text-neutral-400">Update your password associated with your account.</p>
             <form onSubmit={handlePasswordSubmit} className="mt-6 space-y-4">
                 <div>
-                    <label htmlFor="new-password">New Password</label>
+                    <label htmlFor="new-password" className={formLabelStyle}>New Password</label>
                     <input
                         type="password"
                         id="new-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="block w-full mt-1 border-neutral-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                        className={`${formInputStyle} mt-1`}
                     />
                 </div>
                  <div>
-                    <label htmlFor="confirm-password">Confirm New Password</label>
+                    <label htmlFor="confirm-password" className={formLabelStyle}>Confirm New Password</label>
                     <input
                         type="password"
                         id="confirm-password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="block w-full mt-1 border-neutral-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                        className={`${formInputStyle} mt-1`}
                     />
                 </div>
-                {passwordError && <p className="text-sm text-accent-600">{passwordError}</p>}
+                {passwordError && <p className="text-sm text-accent-danger">{passwordError}</p>}
                 <div className="pt-2 text-right">
-                    <button type="submit" className="px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary-600 hover:bg-primary-700">Update Password</button>
+                    <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-md hover:opacity-90 transition-opacity">Update Password</button>
                 </div>
             </form>
         </div>

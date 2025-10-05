@@ -15,12 +15,14 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
     const projectChartRef = useRef<HTMLCanvasElement>(null);
     const monthlyChartRef = useRef<HTMLCanvasElement>(null);
 
-    const chartColors = ['#6366f1', '#38bdf8', '#f43f5e', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#64748b', '#0d9488'];
+    const chartColors = ['#3B82F6', '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B', '#0D9488'];
 
     useEffect(() => {
         let categoryChart: any;
         let projectChart: any;
         let monthlyChart: any;
+        Chart.defaults.color = '#94A3B8';
+        Chart.defaults.font.family = 'Inter';
 
         if (categoryChartRef.current) {
             const ctx = categoryChartRef.current.getContext('2d');
@@ -29,21 +31,27 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     .filter(e => e.categoryId === category.id && e.status === Status.APPROVED)
                     .reduce((sum, e) => sum + e.amount, 0);
                 return { name: category.name, total };
-            }).filter(c => c.total > 0);
+            }).filter(c => c.total > 0).sort((a,b) => b.total - a.total);
 
             categoryChart = new Chart(ctx, {
                 type: 'pie',
                 data: {
                     labels: expensesByCategory.map(c => c.name),
                     datasets: [{
-                        label: 'Expenses by Category',
                         data: expensesByCategory.map(c => c.total),
                         backgroundColor: chartColors,
-                        borderColor: '#fff',
-                        borderWidth: 2,
+                        borderColor: '#0F172A',
+                        borderWidth: 4,
+                        hoverOffset: 8,
                     }]
                 },
-                options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Approved Spending by Category', font: { size: 16 } } } }
+                options: { 
+                    responsive: true, 
+                    plugins: { 
+                        legend: { position: 'right', labels: { boxWidth: 12, padding: 15 } }, 
+                        title: { display: true, text: 'Approved Spending by Category', font: { size: 16 }, color: '#F8FAFC', padding: { bottom: 20 } } 
+                    } 
+                }
             });
         }
 
@@ -54,21 +62,28 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     .filter(e => e.projectId === project.id && e.status === Status.APPROVED)
                     .reduce((sum, e) => sum + e.amount, 0);
                 return { name: project.name, total };
-            }).filter(p => p.total > 0);
+            }).filter(p => p.total > 0).sort((a,b) => b.total - a.total);
 
             projectChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: expensesByProject.map(p => p.name),
                     datasets: [{
-                        label: 'Expenses by Project',
-                        data: expensesByProject.map(p => p.total),
+                         data: expensesByProject.map(p => p.total),
                          backgroundColor: chartColors.slice().reverse(),
-                         borderColor: '#fff',
-                         borderWidth: 2,
+                         borderColor: '#0F172A',
+                         borderWidth: 4,
+                         hoverOffset: 8,
                     }]
                 },
-                options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Approved Spending by Project', font: {size: 16} } } }
+                options: { 
+                    responsive: true, 
+                    cutout: '70%',
+                    plugins: { 
+                        legend: { position: 'right', labels: { boxWidth: 12, padding: 15 } }, 
+                        title: { display: true, text: 'Approved Spending by Project', font: {size: 16}, color: '#F8FAFC', padding: { bottom: 20 } } 
+                    } 
+                }
             });
         }
         
@@ -77,20 +92,13 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
             const monthlyData: { [key: string]: number } = {};
             expenses.forEach(expense => {
                 if (expense.status === Status.APPROVED) {
-                    const month = new Date(expense.submittedAt).toLocaleString('default', { month: 'short', year: '2-digit' });
+                    const month = new Date(expense.submittedAt).toLocaleString('default', { month: 'short', year: 'numeric' });
                     if (!monthlyData[month]) monthlyData[month] = 0;
                     monthlyData[month] += expense.amount;
                 }
             });
 
-            // Ensure we have sorted labels
-            const sortedMonths = Object.keys(monthlyData).sort((a,b) => {
-                const [monthA, yearA] = a.split(' ');
-                const [monthB, yearB] = b.split(' ');
-                const dateA = new Date(`01 ${monthA} 20${yearA}`);
-                const dateB = new Date(`01 ${monthB} 20${yearB}`);
-                return dateA.getTime() - dateB.getTime();
-            });
+            const sortedMonths = Object.keys(monthlyData).sort((a,b) => new Date(a).getTime() - new Date(b).getTime());
 
             monthlyChart = new Chart(ctx, {
                 type: 'bar',
@@ -99,16 +107,20 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     datasets: [{
                         label: 'Total Approved Amount (₹)',
                         data: sortedMonths.map(month => monthlyData[month]),
-                        backgroundColor: 'rgba(99, 102, 241, 0.8)',
-                        borderColor: 'rgba(99, 102, 241, 1)',
-                        borderWidth: 1,
-                        borderRadius: 4,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(59, 130, 246, 0.8)'
                     }]
                 },
-                options: {
+                 options: {
                     responsive: true,
-                    plugins: { legend: { display: false }, title: { display: true, text: 'Monthly Spending Trend', font: {size: 16} } },
-                    scales: { y: { beginAtZero: true } }
+                    plugins: { legend: { display: false }, title: { display: true, text: 'Monthly Spending Trend', font: {size: 16}, color: '#F8FAFC', padding: { bottom: 20 } } },
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                        x: { grid: { display: false } }
+                    }
                 }
             });
         }
@@ -122,19 +134,21 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
     }, [expenses, categories, projects]);
 
     return (
-        <div>
-            <h2 className="text-2xl font-bold tracking-tight text-neutral-900">Reports & Analytics</h2>
-            <p className="mt-1 text-sm text-neutral-600">Visualize spending patterns and gain insights into expense data.</p>
+        <div className="space-y-8">
+            <div>
+                <h2 className="text-3xl font-bold text-neutral-50">Reports & Analytics</h2>
+                <p className="mt-1 text-neutral-400">Visualize spending patterns and gain insights into expense data.</p>
+            </div>
             
-            <div className="grid grid-cols-1 gap-8 mt-6 lg:grid-cols-2">
-                <div className="p-6 bg-white rounded-xl shadow-lg border-t-4 border-secondary-400">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
                     <canvas ref={categoryChartRef}></canvas>
                 </div>
-                <div className="p-6 bg-white rounded-xl shadow-lg border-t-4 border-rose-400">
+                <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
                     <canvas ref={projectChartRef}></canvas>
                 </div>
             </div>
-            <div className="p-6 mt-8 bg-white rounded-xl shadow-lg border-t-4 border-primary-400">
+            <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
                  <canvas ref={monthlyChartRef}></canvas>
             </div>
         </div>

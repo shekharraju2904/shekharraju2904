@@ -52,16 +52,20 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
     return true;
   }).sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 
+  const formInputStyle = "relative block w-full px-4 py-3 bg-neutral-900/50 border border-neutral-700 text-neutral-50 placeholder-neutral-400 rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm";
+  const formLabelStyle = "block text-sm font-medium text-neutral-300";
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold tracking-tight text-neutral-900">All Transactions</h2>
-      <p className="mt-1 text-sm text-neutral-600">A complete log of all expense requests in the system.</p>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-neutral-50">All Transactions</h2>
+        <p className="mt-1 text-neutral-400">A complete log of all expense requests in the system.</p>
+      </div>
 
-      <div className="p-4 my-6 bg-white rounded-xl shadow-lg border-t-4 border-indigo-400">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
           <div>
-            <label htmlFor="search-term" className="block text-sm font-medium text-neutral-700">Search</label>
+            <label htmlFor="search-term" className={formLabelStyle}>Search</label>
             <input 
               type="text" 
               id="search-term" 
@@ -69,44 +73,44 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
               placeholder="Ref #, Requestor, Desc..."
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
+              className={`${formInputStyle} mt-1`} />
           </div>
           <div>
-            <label htmlFor="status-filter" className="block text-sm font-medium text-neutral-700">Status</label>
+            <label htmlFor="status-filter" className={formLabelStyle}>Status</label>
             <select 
               id="status-filter" 
               name="status"
               value={statusFilter} 
               onChange={e => setStatusFilter(e.target.value as Status | 'All')} 
-              className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              className={`${formInputStyle} pr-10 mt-1`}
             >
-              <option value="All">All Statuses</option>
-              {Object.values(Status).map(s => (<option key={s} value={s}>{s}</option>))}
+              <option value="All" className="bg-neutral-900">All Statuses</option>
+              {Object.values(Status).map(s => (<option key={s} value={s} className="bg-neutral-900">{s}</option>))}
             </select>
           </div>
            <div>
-            <label htmlFor="from-date" className="block text-sm font-medium text-neutral-700">From</label>
+            <label htmlFor="from-date" className={formLabelStyle}>From</label>
             <input 
               type="date" 
               id="from-date" 
               name="from" 
               value={dateRange.from} 
               onChange={handleDateChange} 
-              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
+              className={`${formInputStyle} mt-1`} />
           </div>
           <div>
-            <label htmlFor="to-date" className="block text-sm font-medium text-neutral-700">To</label>
+            <label htmlFor="to-date" className={formLabelStyle}>To</label>
             <input 
               type="date" 
               id="to-date" 
               name="to" 
               value={dateRange.to} 
               onChange={handleDateChange} 
-              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-neutral-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
+              className={`${formInputStyle} mt-1`} />
           </div>
         </div>
         {(currentUser.role === Role.VERIFIER || currentUser.role === Role.APPROVER) && (
-            <div className="relative flex items-start pt-4 mt-4 border-t border-neutral-200">
+            <div className="relative flex items-start pt-6 mt-6 border-t border-white/10">
                 <div className="flex items-center h-5">
                     <input
                         id="my-actions-only"
@@ -114,11 +118,11 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
                         type="checkbox"
                         checked={showMyActionsOnly}
                         onChange={(e) => setShowMyActionsOnly(e.target.checked)}
-                        className="w-4 h-4 rounded text-primary-600 border-neutral-300 focus:ring-primary-500"
+                        className="w-4 h-4 bg-neutral-700 border-neutral-600 rounded text-primary focus:ring-primary"
                     />
                 </div>
                 <div className="ml-3 text-sm">
-                    <label htmlFor="my-actions-only" className="font-medium text-neutral-700">
+                    <label htmlFor="my-actions-only" className="font-medium text-neutral-300">
                         Show only transactions I've actioned
                     </label>
                 </div>
@@ -126,19 +130,17 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
         )}
       </div>
 
-      <div className="mt-8">
-        <ExpenseList 
-          expenses={filteredExpenses} 
-          categories={categories}
-          projects={projects}
-          sites={sites}
-          title="Transaction History"
-          emptyMessage="No expenses match the current filters."
-          currentUser={currentUser}
-          onViewExpense={onViewExpense}
-          onSoftDeleteExpense={onSoftDeleteExpense}
-        />
-      </div>
+      <ExpenseList 
+        expenses={filteredExpenses} 
+        categories={categories}
+        projects={projects}
+        sites={sites}
+        title="Transaction History"
+        emptyMessage="No expenses match the current filters."
+        currentUser={currentUser}
+        onViewExpense={onViewExpense}
+        onSoftDeleteExpense={onSoftDeleteExpense}
+      />
     </div>
   );
 };
