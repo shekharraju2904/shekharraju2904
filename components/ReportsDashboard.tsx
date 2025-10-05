@@ -15,7 +15,7 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
     const projectChartRef = useRef<HTMLCanvasElement>(null);
     const monthlyChartRef = useRef<HTMLCanvasElement>(null);
 
-    const chartColors = ['#6366f1', '#0ea5e9', '#f43f5e', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#64748b'];
+    const chartColors = ['#6366f1', '#38bdf8', '#f43f5e', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#64748b', '#0d9488'];
 
     useEffect(() => {
         let categoryChart: any;
@@ -99,7 +99,9 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     datasets: [{
                         label: 'Total Approved Amount (₹)',
                         data: sortedMonths.map(month => monthlyData[month]),
-                        backgroundColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        borderWidth: 1,
                         borderRadius: 4,
                     }]
                 },
@@ -125,14 +127,14 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
             <p className="mt-1 text-sm text-neutral-600">Visualize spending patterns and gain insights into expense data.</p>
             
             <div className="grid grid-cols-1 gap-8 mt-6 lg:grid-cols-2">
-                <div className="p-6 bg-white rounded-xl shadow-lg">
+                <div className="p-6 bg-white rounded-xl shadow-lg border-t-4 border-secondary-400">
                     <canvas ref={categoryChartRef}></canvas>
                 </div>
-                <div className="p-6 bg-white rounded-xl shadow-lg">
+                <div className="p-6 bg-white rounded-xl shadow-lg border-t-4 border-rose-400">
                     <canvas ref={projectChartRef}></canvas>
                 </div>
             </div>
-            <div className="p-6 mt-8 bg-white rounded-xl shadow-lg">
+            <div className="p-6 mt-8 bg-white rounded-xl shadow-lg border-t-4 border-primary-400">
                  <canvas ref={monthlyChartRef}></canvas>
             </div>
         </div>

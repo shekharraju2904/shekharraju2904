@@ -17,14 +17,14 @@ const Avatar: React.FC<AvatarProps> = ({ name, size = 'md' }) => {
   };
 
   const colors = [
-    'bg-sky-200 text-sky-800',
-    'bg-indigo-200 text-indigo-800',
-    'bg-rose-200 text-rose-800',
-    'bg-amber-200 text-amber-800',
-    'bg-emerald-200 text-emerald-800',
-    'bg-violet-200 text-violet-800',
-    'bg-lime-200 text-lime-800',
-    'bg-cyan-200 text-cyan-800',
+    'bg-sky-300 text-sky-900',
+    'bg-indigo-300 text-indigo-900',
+    'bg-rose-300 text-rose-900',
+    'bg-amber-300 text-amber-900',
+    'bg-emerald-300 text-emerald-900',
+    'bg-violet-300 text-violet-900',
+    'bg-lime-300 text-lime-900',
+    'bg-cyan-300 text-cyan-900',
   ];
 
   const colorIndex = (name.charCodeAt(0) + name.length) % colors.length;

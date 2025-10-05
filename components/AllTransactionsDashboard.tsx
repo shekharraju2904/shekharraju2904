@@ -58,7 +58,7 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
       <h2 className="text-2xl font-bold tracking-tight text-neutral-900">All Transactions</h2>
       <p className="mt-1 text-sm text-neutral-600">A complete log of all expense requests in the system.</p>
 
-      <div className="p-4 my-6 bg-white rounded-xl shadow-lg">
+      <div className="p-4 my-6 bg-white rounded-xl shadow-lg border-t-4 border-indigo-400">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div>
             <label htmlFor="search-term" className="block text-sm font-medium text-neutral-700">Search</label>

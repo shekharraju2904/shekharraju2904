@@ -159,14 +159,14 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const TabButton = ({ tabName, label }: {tabName: string; label: string}) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`${activeTab === tabName ? 'border-primary-500 text-primary-600' : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+      className={`${activeTab === tabName ? 'bg-white text-primary-600 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'} rounded-md py-2 px-3 font-medium text-sm transition-all duration-200`}
     >
       {label}
     </button>
   )
 
   return (
-    <div className="min-h-screen bg-neutral-100">
+    <div className="min-h-screen bg-neutral-200">
       <Header 
         user={currentUser} 
         onLogout={onLogout}
@@ -179,15 +179,17 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       />
       <main className="py-10">
         <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="pb-5 border-b border-neutral-200 sm:flex sm:items-baseline sm:justify-between">
-            <nav className="flex -mb-px space-x-8" aria-label="Tabs">
-              <TabButton tabName="overview" label="Overview" />
-              <TabButton tabName="tasks" label={getRoleSpecificTabName()} />
-              <TabButton tabName="all_transactions" label="All Transactions" />
-              {canSeeAttachmentsTab && <TabButton tabName="attachments" label="Attachments" />}
-              {canSeeReportsTab && <TabButton tabName="reports" label="Reports" />}
-              <TabButton tabName="profile" label="My Profile" />
-            </nav>
+          <div className="pb-5 sm:flex sm:items-baseline sm:justify-between">
+            <div className="p-1.5 bg-neutral-100 rounded-lg">
+                <nav className="flex space-x-1" aria-label="Tabs">
+                  <TabButton tabName="overview" label="Overview" />
+                  <TabButton tabName="tasks" label={getRoleSpecificTabName()} />
+                  <TabButton tabName="all_transactions" label="All Transactions" />
+                  {canSeeAttachmentsTab && <TabButton tabName="attachments" label="Attachments" />}
+                  {canSeeReportsTab && <TabButton tabName="reports" label="Reports" />}
+                  <TabButton tabName="profile" label="My Profile" />
+                </nav>
+            </div>
              {activeTab === 'tasks' && currentUser.role === Role.REQUESTOR && (
               <div className="mt-3 sm:ml-4 sm:mt-0">
                 <button

@@ -66,18 +66,18 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
   };
 
   const StatusBadge = ({ status }: { status: Status }) => {
-    const baseClasses = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full';
+    const baseClasses = 'px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full text-white shadow-md';
     switch (status) {
-      case Status.APPROVED: return <span className={`${baseClasses} bg-success-100 text-success-800`}>{status}</span>;
-      case Status.REJECTED: return <span className={`${baseClasses} bg-accent-100 text-accent-800`}>{status}</span>;
-      case Status.PENDING_APPROVAL: return <span className={`${baseClasses} bg-amber-100 text-amber-800`}>{status}</span>;
-      case Status.PENDING_VERIFICATION: return <span className={`${baseClasses} bg-secondary-100 text-secondary-800`}>{status}</span>;
-      default: return <span className={`${baseClasses} bg-neutral-100 text-neutral-800`}>{status}</span>;
+      case Status.APPROVED: return <span className={`${baseClasses} bg-success-500`}>{status}</span>;
+      case Status.REJECTED: return <span className={`${baseClasses} bg-accent-500`}>{status}</span>;
+      case Status.PENDING_APPROVAL: return <span className={`${baseClasses} bg-amber-500`}>{status}</span>;
+      case Status.PENDING_VERIFICATION: return <span className={`${baseClasses} bg-secondary-500`}>{status}</span>;
+      default: return <span className={`${baseClasses} bg-neutral-500`}>{status}</span>;
     }
   };
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-lg">
+    <div className="p-6 bg-white rounded-xl shadow-lg border-t-4 border-indigo-400">
       <h3 className="text-lg font-medium leading-6 text-neutral-900">{title}</h3>
       <div className="flow-root mt-6">
         {expenses.length > 0 ? (
@@ -107,9 +107,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                     <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-200 bg-white">
+                <tbody className="bg-white divide-y divide-neutral-200">
                   {expenses.map((expense) => (
-                    <tr key={expense.id} className={`transition-colors duration-200 ${selectedExpenseIds.includes(expense.id) ? 'bg-primary-50' : 'hover:bg-neutral-50'}`}>
+                    <tr key={expense.id} className={`transition-colors duration-200 ${selectedExpenseIds.includes(expense.id) ? 'bg-indigo-50' : 'even:bg-slate-50 hover:bg-slate-100'}`}>
                       {isSelectionEnabled && onToggleSelection && (
                         <td className="relative px-4">
                           <input

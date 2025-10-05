@@ -38,7 +38,7 @@ const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, ex
     <div>
       <h2 className="text-2xl font-bold tracking-tight text-gray-900">My Expenses</h2>
 
-      <div className="p-4 my-6 bg-white rounded-lg shadow">
+      <div className="p-4 my-6 bg-white rounded-lg shadow-lg border-t-4 border-indigo-400">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700">Status</label>
@@ -47,7 +47,7 @@ const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, ex
               name="status"
               value={statusFilter} 
               onChange={e => setStatusFilter(e.target.value as Status | 'All')} 
-              className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+              className="block w-full py-2 pl-3 pr-10 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             >
               <option value="All">All Statuses</option>
               {Object.values(Status).map(s => (<option key={s} value={s}>{s}</option>))}
@@ -61,7 +61,7 @@ const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, ex
               name="from" 
               value={dateRange.from} 
               onChange={handleDateChange} 
-              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
+              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
           </div>
           <div>
             <label htmlFor="to-date" className="block text-sm font-medium text-gray-700">To</label>
@@ -71,7 +71,7 @@ const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, ex
               name="to" 
               value={dateRange.to} 
               onChange={handleDateChange} 
-              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
+              className="block w-full py-2 pl-3 pr-2 mt-1 text-base border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
           </div>
         </div>
       </div>
