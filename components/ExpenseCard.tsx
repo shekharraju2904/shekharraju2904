@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Expense, Status, Role, User, Category, Project, Site } from '../types';
-import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, PrinterIcon, StarIcon, TrashIcon } from './Icons';
+import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, PrinterIcon, StarIcon, TrashIcon, CreditCardIcon, UploadCloud, FileImage } from './Icons';
 import { supabase } from '../supabaseClient';
 import Avatar from './Avatar';
 
@@ -15,6 +15,7 @@ interface ExpenseCardProps {
   onAddComment: (expenseId: string, comment: string) => void;
   onToggleExpensePriority: (expenseId: string) => void;
   onSoftDeleteExpense?: () => void;
+  onMarkAsPaid?: (expenseId: string, attachment: File) => void;
   onClose?: () => void;
 }
 
@@ -57,12 +58,13 @@ const cleanFileName = (path: string | null | undefined): string | undefined => {
 
 const ExpenseCard: React.FC<ExpenseCardProps> = ({ 
     expense, categories, projects, sites, userRole, currentUser,
-    onUpdateStatus, onAddComment, onToggleExpensePriority, onSoftDeleteExpense, onClose 
+    onUpdateStatus, onAddComment, onToggleExpensePriority, onSoftDeleteExpense, onMarkAsPaid, onClose 
 }) => {
     const [rejectionComment, setRejectionComment] = useState('');
     const [showRejectionInput, setShowRejectionInput] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [showHistory, setShowHistory] = useState(true);
+    const [paymentAttachment, setPaymentAttachment] = useState<File | undefined>();
 
     const handleApprove = () => {
         if (!onUpdateStatus) return;
@@ -82,6 +84,14 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
             setNewComment('');
         }
     };
+    
+    const handleMarkAsPaid = () => {
+        if (onMarkAsPaid && paymentAttachment) {
+            onMarkAsPaid(expense.id, paymentAttachment);
+        } else {
+            alert("Please attach payment proof.");
+        }
+    };
 
     const handlePrint = () => window.print();
     
@@ -89,6 +99,8 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                           (userRole === Role.APPROVER && expense.status === Status.PENDING_APPROVAL);
 
     const canTogglePriority = [Role.ADMIN, Role.VERIFIER, Role.APPROVER].includes(userRole);
+    
+    const canMarkAsPaid = [Role.VERIFIER, Role.APPROVER, Role.ADMIN].includes(userRole) && expense.status === Status.APPROVED;
 
     const category = categories.find(c => c.id === expense.categoryId);
     const subcategory = category?.subcategories?.find(sc => sc.id === expense.subcategoryId);
@@ -101,6 +113,9 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
     
     const subAttachmentUrl = getAttachmentUrl(expense.subcategory_attachment_path);
     const subAttachmentName = cleanFileName(expense.subcategory_attachment_path);
+    
+    const paymentAttachmentUrl = getAttachmentUrl(expense.payment_attachment_path);
+    const paymentAttachmentName = cleanFileName(expense.payment_attachment_path);
 
     return (
         <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-2">
@@ -148,6 +163,63 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
                 </div>
             )}
             
+             {expense.status === Status.APPROVED && (
+                <div className="p-4 bg-neutral-900/50 border border-neutral-700 rounded-lg">
+                    <h4 className="text-sm font-medium text-neutral-300">Payment Status</h4>
+                    <div className="mt-2 text-sm text-accent">Awaiting Payment</div>
+
+                    {canMarkAsPaid && (
+                        <div className="mt-4 pt-4 border-t border-neutral-600">
+                            <h5 className="font-semibold text-neutral-100">Process Payment</h5>
+                            <div className="mt-2">
+                                {paymentAttachment ? (
+                                    <div className="relative flex items-center p-3 mt-1 bg-neutral-900 border border-neutral-600 rounded-lg">
+                                        <FileImage className="w-8 h-8 mr-3 text-neutral-400" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-neutral-100 truncate">{paymentAttachment.name}</p>
+                                            <p className="text-xs text-neutral-400">{(paymentAttachment.size / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                        <button type="button" onClick={() => setPaymentAttachment(undefined)} className="ml-2 p-1 text-neutral-400 rounded-full hover:bg-neutral-700 hover:text-white">
+                                            <XCircleIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label htmlFor="payment-attachment" className="flex justify-center w-full px-6 py-4 mt-1 border-2 border-dashed rounded-lg cursor-pointer border-neutral-600 hover:border-neutral-500">
+                                        <div className="text-center">
+                                            <UploadCloud className="w-8 h-8 mx-auto text-neutral-500"/>
+                                            <span className="mt-2 block text-sm font-semibold text-primary-light">Upload Payment Proof</span>
+                                            <input id="payment-attachment" type="file" className="sr-only" onChange={(e) => setPaymentAttachment(e.target.files?.[0])} />
+                                        </div>
+                                    </label>
+                                )}
+                            </div>
+
+                            <div className="mt-4 flex justify-end">
+                                <button onClick={handleMarkAsPaid} disabled={!paymentAttachment} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-success/80 border border-transparent rounded-md shadow-sm hover:bg-success disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <CreditCardIcon className="w-5 h-5 mr-2"/>
+                                    Confirm Payment
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {expense.status === Status.PAID && (
+                <div className="p-4 bg-neutral-900/50 border border-teal-500/30 rounded-lg">
+                    <h4 className="text-sm font-medium text-teal-300">Payment Processed</h4>
+                    <div className="mt-2 text-sm">
+                        <p><span className="text-neutral-400">Paid on:</span> {formatDateTime(expense.paidAt!)}</p>
+                        {paymentAttachmentUrl && (
+                            <a href={paymentAttachmentUrl} download={paymentAttachmentName} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-3 py-1 mt-3 text-sm text-neutral-300 bg-neutral-700/50 border border-neutral-600 rounded-md hover:bg-neutral-700 transition-colors">
+                                <PaperClipIcon className="w-4 h-4"/>
+                                View Payment Proof
+                            </a>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div>
                 <button onClick={() => setShowHistory(!showHistory)} className="flex items-center justify-between w-full text-sm font-medium text-left text-neutral-400 hover:text-neutral-100">
                     <span>History & Comments</span>

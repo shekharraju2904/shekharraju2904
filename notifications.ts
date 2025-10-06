@@ -215,3 +215,18 @@ export const sendBackupEmail = (admins: User[], backupData: string) => {
   
   admins.forEach(admin => sendEmailNotification(admin, subject, body));
 };
+
+export const notifyRequestorOnPayment = (requestor: User, expense: Expense) => {
+    const subject = `💰 Your expense request ${expense.referenceNumber} has been paid`;
+    const body = `
+        Hi ${requestor.name},
+
+        Your approved expense request has been processed and paid.
+        
+        Reference: ${expense.referenceNumber}
+        Amount: ₹${expense.amount.toLocaleString('en-IN')}
+        
+        The amount has been reimbursed. You can view payment details in the portal.
+    `;
+    sendEmailNotification(requestor, subject, body);
+};

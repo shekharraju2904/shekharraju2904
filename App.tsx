@@ -44,6 +44,9 @@ const mapDbExpenseToAppExpense = (e: any, userMap: Map<string, string>): Expense
     isHighPriority: e.is_high_priority,
     attachment_path: e.attachment_path,
     subcategory_attachment_path: e.subcategory_attachment_path,
+    payment_attachment_path: e.payment_attachment_path,
+    paidAt: e.paid_at,
+    paidBy: e.paid_by,
     history: e.history,
     deletedAt: e.deleted_at,
     deletedBy: e.deleted_by,
@@ -272,7 +275,7 @@ const App: React.FC = () => {
     if (error) console.error("Failed to add audit log:", error);
   };
 
-  const handleAddExpense = async (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => {
+  const handleAddExpense = async (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path' | 'payment_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => {
     if (!currentUser) return;
 
     let attachment_path: string | null = null;
@@ -322,6 +325,7 @@ const App: React.FC = () => {
       }],
       attachment_path,
       subcategory_attachment_path,
+      payment_attachment_path: null,
     };
 
     const category = categories.find(c => c.id === newExpense.categoryId);
@@ -862,6 +866,63 @@ const App: React.FC = () => {
     }
   };
 
+  const handleMarkAsPaid = async (expenseId: string, paymentAttachment: File) => {
+    if (!currentUser) return;
+    const expenseToUpdate = expenses.find(e => e.id === expenseId);
+    if (!expenseToUpdate) {
+        alert("Could not find the expense to update.");
+        return;
+    }
+
+    setLoading(true);
+    let payment_attachment_path: string | null = null;
+    try {
+        const filePath = `${currentUser.id}/payment_${Date.now()}_${paymentAttachment.name}`;
+        const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, paymentAttachment);
+        if (uploadError) throw uploadError;
+        payment_attachment_path = filePath;
+
+        const newHistoryItem = {
+            actorId: currentUser.id,
+            actorName: currentUser.name,
+            action: 'Paid',
+            timestamp: new Date().toISOString(),
+        };
+        const updatedHistory = [...expenseToUpdate.history, newHistoryItem];
+
+        const { error: updateError } = await supabase
+            .from('expenses')
+            .update({
+                status: Status.PAID,
+                paid_at: new Date().toISOString(),
+                paid_by: currentUser.id,
+                payment_attachment_path,
+                history: updatedHistory,
+            })
+            .eq('id', expenseId);
+        
+        if (updateError) throw updateError;
+
+        await addAuditLogEntry('Expense Paid', `Marked expense '${expenseToUpdate.referenceNumber}' as paid.`);
+        alert("Expense marked as paid.");
+        await fetchData();
+
+        const requestor = users.find(u => u.id === expenseToUpdate.requestorId);
+        if (requestor) {
+            Notifications.notifyRequestorOnPayment(requestor, { ...expenseToUpdate, status: Status.PAID });
+        }
+
+    } catch (error) {
+        const message = (error && typeof error === 'object' && 'message' in error) ? (error as { message: string }).message : String(error);
+        alert(`Failed to mark expense as paid: ${message}`);
+        if (payment_attachment_path) {
+            await supabase.storage.from('attachments').remove([payment_attachment_path]);
+        }
+    } finally {
+        setLoading(false);
+    }
+  };
+
 
   if (!isConfigured) {
     return <SupabaseInstructions onSave={handleSaveConfiguration} />;
@@ -902,6 +963,7 @@ const App: React.FC = () => {
       onUpdateCategory={handleUpdateCategory}
       onDeleteCategory={onDeleteCategory}
       onAddSubcategory={handleAddSubcategory}
+      // FIX: Corrected a typo in the prop name. It should be `handleUpdateSubcategory`.
       onUpdateSubcategory={handleUpdateSubcategory}
       onDeleteSubcategory={onDeleteSubcategory}
       onToggleExpensePriority={handleToggleExpensePriority}
@@ -917,6 +979,7 @@ const App: React.FC = () => {
       onSoftDeleteExpense={handleSoftDeleteExpense}
       onRestoreExpense={handleRestoreExpense}
       onPermanentlyDeleteExpense={handlePermanentlyDeleteExpense}
+      onMarkAsPaid={handleMarkAsPaid}
       isLoading={loading}
     />
   );

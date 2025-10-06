@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Expense, Category, Status, User, Project, Site, Role } from '../types';
-import { EyeIcon, StarIcon, TrashIcon, CheckCircleIcon, XCircleIcon, Hourglass } from './Icons';
+import { EyeIcon, StarIcon, TrashIcon, CheckCircleIcon, XCircleIcon, Hourglass, CreditCardIcon } from './Icons';
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -71,12 +71,14 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
       [Status.REJECTED]: 'bg-accent-danger/20 text-accent-danger',
       [Status.PENDING_APPROVAL]: 'bg-accent/20 text-accent',
       [Status.PENDING_VERIFICATION]: 'bg-primary/20 text-primary-light',
+      [Status.PAID]: 'bg-teal-500/20 text-teal-300',
     };
     const icons = {
         [Status.APPROVED]: <CheckCircleIcon className="w-4 h-4" />,
         [Status.REJECTED]: <XCircleIcon className="w-4 h-4" />,
         [Status.PENDING_APPROVAL]: <Hourglass className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />,
         [Status.PENDING_VERIFICATION]: <Hourglass className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />,
+        [Status.PAID]: <CreditCardIcon className="w-4 h-4" />,
     }
     const style = styles[status] || 'bg-neutral-500/20 text-neutral-300';
     const icon = icons[status] || null;

@@ -10,6 +10,7 @@ export enum Status {
   PENDING_APPROVAL = 'Pending Approval',
   APPROVED = 'Approved',
   REJECTED = 'Rejected',
+  PAID = 'Paid',
 }
 
 export interface User {
@@ -70,6 +71,9 @@ export interface Expense {
   isHighPriority?: boolean;
   attachment_path: string | null;
   subcategory_attachment_path: string | null;
+  payment_attachment_path: string | null;
+  paidAt?: string; // ISO string
+  paidBy?: string; // user id
   history: HistoryItem[];
   deletedAt?: string; // ISO string
   deletedBy?: string; // user id

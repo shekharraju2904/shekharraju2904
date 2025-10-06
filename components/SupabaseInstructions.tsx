@@ -53,7 +53,10 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     history jsonb,
     deleted_at timestamp with time zone,
     deleted_by uuid REFERENCES public.profiles(id),
-    status_before_delete text
+    status_before_delete text,
+    paid_at timestamp with time zone,
+    paid_by uuid REFERENCES public.profiles(id),
+    payment_attachment_path text
 );
 CREATE TABLE IF NOT EXISTS public.audit_log (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -64,7 +67,7 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
     details text
 );
 
--- 1.5 Add soft delete columns to expenses table if they don't exist (for migrations)
+-- 1.5 Add soft delete and payment columns to expenses table if they don't exist (for migrations)
 DO $$
 BEGIN
   IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'deleted_at') THEN
@@ -75,6 +78,15 @@ BEGIN
   END IF;
   IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'status_before_delete') THEN
     ALTER TABLE public.expenses ADD COLUMN status_before_delete text;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'paid_at') THEN
+    ALTER TABLE public.expenses ADD COLUMN paid_at timestamp with time zone;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'paid_by') THEN
+    ALTER TABLE public.expenses ADD COLUMN paid_by uuid REFERENCES public.profiles(id);
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'payment_attachment_path') THEN
+    ALTER TABLE public.expenses ADD COLUMN payment_attachment_path text;
   END IF;
 END $$;
 
@@ -200,13 +212,13 @@ CREATE POLICY "Allow requestor to insert their own expenses." ON public.expenses
 DROP POLICY IF EXISTS "Allow verifiers/approvers to update expenses." ON public.expenses;
 DROP POLICY IF EXISTS "Allow verifiers to update expenses." ON public.expenses;
 CREATE POLICY "Allow verifiers to update expenses." ON public.expenses FOR UPDATE
-USING (public.get_my_role() = 'verifier' AND status = 'Pending Verification')
-WITH CHECK (status IN ('Pending Approval', 'Rejected', 'Pending Verification'));
+USING (public.get_my_role() = 'verifier' AND status IN ('Pending Verification', 'Approved'))
+WITH CHECK (status IN ('Pending Approval', 'Rejected', 'Pending Verification', 'Paid'));
 
 DROP POLICY IF EXISTS "Allow approvers to update expenses." ON public.expenses;
 CREATE POLICY "Allow approvers to update expenses." ON public.expenses FOR UPDATE
-USING (public.get_my_role() = 'approver' AND status = 'Pending Approval')
-WITH CHECK (status IN ('Approved', 'Rejected', 'Pending Approval'));
+USING (public.get_my_role() = 'approver' AND status IN ('Pending Approval', 'Approved'))
+WITH CHECK (status IN ('Approved', 'Rejected', 'Pending Approval', 'Paid'));
 
 -- Admin UPDATE policy allows them to edit fields like priority.
 DROP POLICY IF EXISTS "Allow admins to update expenses." ON public.expenses;

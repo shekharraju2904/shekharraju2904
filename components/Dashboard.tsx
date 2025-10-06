@@ -25,7 +25,7 @@ interface DashboardProps {
   auditLog: AuditLogItem[];
   isLoading: boolean;
   onLogout: () => void;
-  onAddExpense: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
+  onAddExpense: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path' | 'payment_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
   onUpdateExpenseStatus: (expenseId: string, newStatus: Status, comment?: string) => void;
   onAddExpenseComment: (expenseId: string, comment: string) => void;
   onBulkUpdateExpenseStatus: (expenseIds: string[], newStatus: Status, comment?: string) => void;
@@ -52,10 +52,11 @@ interface DashboardProps {
   onSoftDeleteExpense: (expenseId: string) => void;
   onRestoreExpense: (expenseId: string) => void;
   onPermanentlyDeleteExpense: (expenseId: string) => void;
+  onMarkAsPaid: (expenseId: string, attachment: File) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onSoftDeleteExpense, ...adminProps } = props;
+  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onSoftDeleteExpense, onMarkAsPaid, ...adminProps } = props;
   const [activeView, setActiveView] = useState('overview');
   const [activeAdminTab, setActiveAdminTab] = useState('users');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
@@ -158,6 +159,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 onSoftDeleteExpense={onSoftDeleteExpense ? () => {
                   onSoftDeleteExpense(modalExpense.id);
                   setModalExpense(null);
+                } : undefined}
+                onMarkAsPaid={onMarkAsPaid ? (expenseId, attachment) => {
+                    onMarkAsPaid(expenseId, attachment);
+                    setModalExpense(null);
                 } : undefined}
                 onClose={() => setModalExpense(null)}
             />

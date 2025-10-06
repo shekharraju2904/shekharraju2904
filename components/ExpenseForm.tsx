@@ -6,7 +6,7 @@ interface ExpenseFormProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
-  onSubmit: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
+  onSubmit: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path' | 'payment_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
   onClose: () => void;
 }
 
