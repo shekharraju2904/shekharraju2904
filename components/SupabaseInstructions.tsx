@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS public.sites (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     name text NOT NULL UNIQUE
 );
+CREATE TABLE IF NOT EXISTS public.companies (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    name text NOT NULL UNIQUE
+);
 CREATE TABLE IF NOT EXISTS public.expenses (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     reference_number text NOT NULL UNIQUE,
@@ -45,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     description text,
     project_id uuid NOT NULL REFERENCES public.projects(id),
     site_id uuid NOT NULL REFERENCES public.sites(id),
+    company_id uuid REFERENCES public.companies(id),
     submitted_at timestamp with time zone NOT NULL DEFAULT now(),
     status text NOT NULL,
     is_high_priority boolean NOT NULL DEFAULT false,
@@ -91,6 +96,9 @@ BEGIN
   END IF;
   IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'payment_reference_number') THEN
     ALTER TABLE public.expenses ADD COLUMN payment_reference_number text;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'company_id') THEN
+    ALTER TABLE public.expenses ADD COLUMN company_id uuid REFERENCES public.companies(id);
   END IF;
 END $$;
 
@@ -143,6 +151,7 @@ ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subcategories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
@@ -189,6 +198,10 @@ DROP POLICY IF EXISTS "Allow authenticated users to read config." ON public.site
 CREATE POLICY "Allow authenticated users to read config." ON public.sites FOR SELECT USING (auth.role() = 'authenticated');
 DROP POLICY IF EXISTS "Allow admins to manage config." ON public.sites;
 CREATE POLICY "Allow admins to manage config." ON public.sites FOR ALL USING (public.get_my_role() = 'admin');
+DROP POLICY IF EXISTS "Allow authenticated users to read config." ON public.companies;
+CREATE POLICY "Allow authenticated users to read config." ON public.companies FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admins to manage config." ON public.companies;
+CREATE POLICY "Allow admins to manage config." ON public.companies FOR ALL USING (public.get_my_role() = 'admin');
 -- AUDIT LOG
 DROP POLICY IF EXISTS "Allow admins to access audit log." ON public.audit_log;
 CREATE POLICY "Allow admins to access audit log." ON public.audit_log FOR ALL USING (public.get_my_role() = 'admin');

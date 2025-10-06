@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Expense, Category, Status, Project, Site, Subcategory } from '../types';
+import { Expense, Category, Status, Project, Site, Subcategory, Company } from '../types';
 import { PlusIcon, CheckCircleIcon, XCircleIcon, Hourglass } from './Icons';
 
 declare const Chart: any;
@@ -9,6 +9,7 @@ interface OverviewDashboardProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
 }
 
 const AnimatedCounter: React.FC<{ end: number, duration?: number, isCurrency?: boolean }> = ({ end, duration = 1500, isCurrency = false }) => {
@@ -46,7 +47,7 @@ const StatCard: React.FC<{ title: string; value: number; isCurrency?: boolean }>
     </div>
 );
 
-const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categories, projects, sites }) => {
+const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categories, projects, sites, companies }) => {
     const categoryChartRef = useRef<HTMLCanvasElement>(null);
     const monthlyChartRef = useRef<HTMLCanvasElement>(null);
 
@@ -143,6 +144,7 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categor
 
     const recentExpenses = [...expenses].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()).slice(0, 5);
     const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || 'Unknown';
+    const getCompanyName = (id: string) => companies.find(c => c.id === id)?.name || 'Unknown';
 
     const StatusIcon = ({ status }: { status: Status }) => {
          const styles = {
@@ -210,7 +212,7 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ expenses, categor
                                         </div>
                                         <div className="mt-2 text-sm text-neutral-300">
                                             <p>
-                                               <span className="font-mono text-primary-light">{expense.referenceNumber}</span> for project <span className="font-semibold">{getProjectName(expense.projectId)}</span>
+                                               <span className="font-mono text-primary-light">{expense.referenceNumber}</span> for project <span className="font-semibold">{getProjectName(expense.projectId)}</span> under company <span className="font-semibold">{getCompanyName(expense.companyId)}</span>
                                             </p>
                                         </div>
                                     </div>

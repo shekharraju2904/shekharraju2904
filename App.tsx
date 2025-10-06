@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site } from './types';
+import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site, Company } from './types';
 import * as Notifications from './notifications';
 import { supabase, initializeSupabase } from './supabaseClient';
 import SupabaseInstructions from './components/SupabaseInstructions';
@@ -39,6 +39,7 @@ const mapDbExpenseToAppExpense = (e: any, userMap: Map<string, string>): Expense
     description: e.description,
     projectId: e.project_id,
     siteId: e.site_id,
+    companyId: e.company_id,
     submittedAt: e.submitted_at,
     status: e.status,
     isHighPriority: e.is_high_priority,
@@ -62,6 +63,7 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [deletedExpenses, setDeletedExpenses] = useState<Expense[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogItem[]>([]);
@@ -92,6 +94,7 @@ const App: React.FC = () => {
         supabase.from('categories').select('*, subcategories(*)'),
         supabase.from('projects').select('*'),
         supabase.from('sites').select('*'),
+        supabase.from('companies').select('*'),
         expensesQuery,
       ];
 
@@ -109,6 +112,7 @@ const App: React.FC = () => {
         categoriesRes,
         projectsRes,
         sitesRes,
+        companiesRes,
         expensesRes,
         ...adminResponses
       ] = responses;
@@ -141,6 +145,9 @@ const App: React.FC = () => {
 
       if (sitesRes.error) throw sitesRes.error;
       setSites(sitesRes.data);
+
+      if (companiesRes.error) throw companiesRes.error;
+      setCompanies(companiesRes.data);
 
       if (expensesRes.error) throw expensesRes.error;
       const fetchedExpenses = expensesRes.data.map((e: any) => mapDbExpenseToAppExpense(e, userMap));
@@ -351,6 +358,7 @@ const App: React.FC = () => {
         description: newExpense.description,
         project_id: newExpense.projectId,
         site_id: newExpense.siteId,
+        company_id: newExpense.companyId,
         submitted_at: newExpense.submittedAt,
         status: newExpense.status,
         is_high_priority: newExpense.isHighPriority,
@@ -375,12 +383,13 @@ const App: React.FC = () => {
 
     const projectName = projects.find(p => p.id === newExpense.projectId)?.name || 'N/A';
     const siteName = sites.find(s => s.id === newExpense.siteId)?.name || 'N/A';
+    const companyName = companies.find(c => c.id === newExpense.companyId)?.name || 'N/A';
     const subcategory = category?.subcategories?.find(sc => sc.id === newExpense.subcategoryId);
     if (category) {
-        Notifications.notifyRequestorOnSubmission(currentUser, newExpense as Expense, category.name, subcategory?.name, projectName, siteName);
+        Notifications.notifyRequestorOnSubmission(currentUser, newExpense as Expense, category.name, subcategory?.name, projectName, siteName, companyName);
         if (newExpense.status === Status.PENDING_VERIFICATION) {
             const verifiers = users.filter(u => u.role === Role.VERIFIER);
-            Notifications.notifyVerifiersOnSubmission(verifiers, newExpense as Expense, category.name, subcategory?.name, projectName, siteName);
+            Notifications.notifyVerifiersOnSubmission(verifiers, newExpense as Expense, category.name, subcategory?.name, projectName, siteName, companyName);
         }
     }
   };
@@ -429,13 +438,14 @@ const App: React.FC = () => {
     const subcategory = category?.subcategories?.find(sc => sc.id === updatedExpense.subcategoryId);
     const projectName = projects.find(p => p.id === updatedExpense.projectId)?.name || 'N/A';
     const siteName = sites.find(s => s.id === updatedExpense.siteId)?.name || 'N/A';
+    const companyName = companies.find(c => c.id === updatedExpense.companyId)?.name || 'N/A';
 
     if (requestor && category) {
-        Notifications.notifyOnStatusChange(requestor, updatedExpense, category.name, subcategory?.name, projectName, siteName, comment);
+        Notifications.notifyOnStatusChange(requestor, updatedExpense, category.name, subcategory?.name, projectName, siteName, companyName, comment);
 
         if (currentUser.role === Role.VERIFIER && newStatus === Status.PENDING_APPROVAL) {
             const approvers = users.filter(u => u.role === Role.APPROVER);
-            Notifications.notifyApproversOnVerification(approvers, updatedExpense, category.name, subcategory?.name, projectName, siteName);
+            Notifications.notifyApproversOnVerification(approvers, updatedExpense, category.name, subcategory?.name, projectName, siteName, companyName);
         }
 
         if (currentUser.role === Role.APPROVER && (newStatus === Status.APPROVED || newStatus === Status.REJECTED)) {
@@ -443,7 +453,7 @@ const App: React.FC = () => {
             if (verifierAction) {
                 const verifier = users.find(u => u.id === verifierAction.actorId);
                 if (verifier) {
-                    Notifications.notifyVerifierOnFinalAction(verifier, currentUser, updatedExpense, category.name, subcategory?.name, projectName, siteName, comment);
+                    Notifications.notifyVerifierOnFinalAction(verifier, currentUser, updatedExpense, category.name, subcategory?.name, projectName, siteName, companyName, comment);
                 }
             }
         }
@@ -671,6 +681,10 @@ const App: React.FC = () => {
   const handleAddSite = (d: Omit<Site, 'id'>) => onCrudOperation(supabase.from('sites').insert(d), `Created site '${d.name}'.`, 'Failed to create site.');
   const handleUpdateSite = (d: Site) => onCrudOperation(supabase.from('sites').update({name: d.name}).eq('id', d.id), `Updated site '${d.name}'.`, 'Failed to update site.');
   const onDeleteSite = (id: string) => onCrudOperation(supabase.from('sites').delete().eq('id', id), `Deleted site.`, 'Failed to delete site.');
+
+  const handleAddCompany = (d: Omit<Company, 'id'>) => onCrudOperation(supabase.from('companies').insert(d), `Created company '${d.name}'.`, 'Failed to create company.');
+  const handleUpdateCompany = (d: Company) => onCrudOperation(supabase.from('companies').update({name: d.name}).eq('id', d.id), `Updated company '${d.name}'.`, 'Failed to update company.');
+  const onDeleteCompany = (id: string) => onCrudOperation(supabase.from('companies').delete().eq('id', id), `Deleted company.`, 'Failed to delete company.');
 
   const handleToggleExpensePriority = async (expenseId: string) => {
     const expenseToUpdate = expenses.find(e => e.id === expenseId);
@@ -954,6 +968,7 @@ const App: React.FC = () => {
       categories={categories}
       projects={projects}
       sites={sites}
+      companies={companies}
       expenses={expenses}
       deletedExpenses={deletedExpenses}
       auditLog={auditLog}
@@ -980,6 +995,9 @@ const App: React.FC = () => {
       onAddSite={handleAddSite}
       onUpdateSite={handleUpdateSite}
       onDeleteSite={onDeleteSite}
+      onAddCompany={handleAddCompany}
+      onUpdateCompany={handleUpdateCompany}
+      onDeleteCompany={onDeleteCompany}
       onUpdateProfile={handleUpdateUserProfile}
       onUpdatePassword={handleUpdateUserPassword}
       onTriggerBackup={handleTriggerBackup}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site } from '../types';
+import { User, Expense, Category, Role, Status, Subcategory, AuditLogItem, Project, Site, Company } from '../types';
 import SideNav from './SideNav';
 import AdminPanel from './AdminPanel';
 import RequestorDashboard from './RequestorDashboard';
@@ -20,6 +20,7 @@ interface DashboardProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
   expenses: Expense[];
   deletedExpenses: Expense[];
   auditLog: AuditLogItem[];
@@ -46,6 +47,9 @@ interface DashboardProps {
   onAddSite: (site: Omit<Site, 'id'>) => void;
   onUpdateSite: (site: Site) => void;
   onDeleteSite: (siteId: string) => void;
+  onAddCompany: (company: Omit<Company, 'id'>) => void;
+  onUpdateCompany: (company: Company) => void;
+  onDeleteCompany: (companyId: string) => void;
   onUpdateProfile: (name: string) => void;
   onUpdatePassword: (password: string) => void;
   onTriggerBackup: () => void;
@@ -56,7 +60,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
-  const { currentUser, onLogout, expenses, categories, projects, sites, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onSoftDeleteExpense, onMarkAsPaid, ...adminProps } = props;
+  const { currentUser, onLogout, expenses, categories, projects, sites, companies, onAddExpense, onUpdateExpenseStatus, onAddExpenseComment, onSoftDeleteExpense, onMarkAsPaid, ...adminProps } = props;
   const [activeView, setActiveView] = useState('overview');
   const [activeAdminTab, setActiveAdminTab] = useState('users');
   const [isNewExpenseModalOpen, setNewExpenseModalOpen] = useState(false);
@@ -74,25 +78,25 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     switch (activeView) {
       case 'overview':
         const overviewExpenses = currentUser.role === Role.REQUESTOR ? requestorExpenses : expenses;
-        return <OverviewDashboard expenses={overviewExpenses} categories={categories} projects={projects} sites={sites} />;
+        return <OverviewDashboard expenses={overviewExpenses} categories={categories} projects={projects} sites={sites} companies={companies} />;
       
       case 'tasks':
         switch (currentUser.role) {
           case Role.REQUESTOR:
-            return <RequestorDashboard currentUser={currentUser} expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} onViewExpense={setModalExpense} />;
+            return <RequestorDashboard currentUser={currentUser} expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} companies={companies} onViewExpense={setModalExpense} />;
           case Role.VERIFIER:
-            return <VerifierDashboard currentUser={currentUser} expenses={verifierExpenses} categories={categories} projects={projects} sites={sites} onUpdateExpenseStatus={onUpdateExpenseStatus} onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus} onToggleExpensePriority={adminProps.onToggleExpensePriority} onViewExpense={setModalExpense} />;
+            return <VerifierDashboard currentUser={currentUser} expenses={verifierExpenses} categories={categories} projects={projects} sites={sites} companies={companies} onUpdateExpenseStatus={onUpdateExpenseStatus} onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus} onToggleExpensePriority={adminProps.onToggleExpensePriority} onViewExpense={setModalExpense} />;
           case Role.APPROVER:
-            return <ApproverDashboard currentUser={currentUser} expenses={approverExpenses} categories={categories} projects={projects} sites={sites} onUpdateExpenseStatus={onUpdateExpenseStatus} onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus} onToggleExpensePriority={adminProps.onToggleExpensePriority} onViewExpense={setModalExpense} />;
+            return <ApproverDashboard currentUser={currentUser} expenses={approverExpenses} categories={categories} projects={projects} sites={sites} companies={companies} onUpdateExpenseStatus={onUpdateExpenseStatus} onBulkUpdateExpenseStatus={adminProps.onBulkUpdateExpenseStatus} onToggleExpensePriority={adminProps.onToggleExpensePriority} onViewExpense={setModalExpense} />;
           default:
             return <p>No tasks available for your role.</p>;
         }
 
       case 'all_transactions':
-        return <AllTransactionsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} currentUser={currentUser} onViewExpense={setModalExpense} onSoftDeleteExpense={onSoftDeleteExpense} />;
+        return <AllTransactionsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} companies={companies} currentUser={currentUser} onViewExpense={setModalExpense} onSoftDeleteExpense={onSoftDeleteExpense} />;
 
       case 'reports':
-        return <ReportsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} />;
+        return <ReportsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} companies={companies} />;
 
       case 'profile':
         return <ProfilePage user={currentUser} onUpdateProfile={props.onUpdateProfile} onUpdatePassword={props.onUpdatePassword} />;
@@ -104,7 +108,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             expenses={expenses} 
             categories={categories} 
             projects={projects} 
-            sites={sites} 
+            sites={sites}
+            companies={companies}
             onTriggerBackup={props.onTriggerBackup} 
             activeAdminTab={activeAdminTab}
             setActiveAdminTab={setActiveAdminTab}
@@ -113,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         return null;
 
       default:
-        return <OverviewDashboard expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} />;
+        return <OverviewDashboard expenses={requestorExpenses} categories={categories} projects={projects} sites={sites} companies={companies} />;
     }
   };
 
@@ -135,6 +140,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             categories={categories}
             projects={projects}
             sites={sites}
+            companies={companies}
             onSubmit={onAddExpense}
             onClose={() => setNewExpenseModalOpen(false)}
         />
@@ -147,6 +153,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 categories={categories}
                 projects={projects}
                 sites={sites}
+                companies={companies}
                 userRole={currentUser.role}
                 currentUser={currentUser}
                 onUpdateStatus={onUpdateExpenseStatus ? (status, comment) => {

@@ -33,9 +33,10 @@ const formatDateTime = (isoString: string) => {
     return `${formatDate(isoString)} ${hours}:${minutes}:${seconds}`;
 };
 
-const getExpenseDetailsForEmail = (expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string): string => {
+const getExpenseDetailsForEmail = (expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string, companyName: string): string => {
   return `
     Reference: ${expense.referenceNumber}
+    Company: ${companyName}
     Project: ${projectName}
     Site/Place: ${siteName}
     Amount: ₹${expense.amount.toLocaleString('en-IN')}
@@ -45,14 +46,14 @@ const getExpenseDetailsForEmail = (expense: Expense, categoryName: string, subca
   `;
 }
 
-export const notifyRequestorOnSubmission = (requestor: User, expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string) => {
+export const notifyRequestorOnSubmission = (requestor: User, expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string, companyName: string) => {
     const subject = `✅ Your expense request ${expense.referenceNumber} has been submitted`;
     const body = `
         Hi ${requestor.name},
 
         This is a confirmation that your expense request has been successfully submitted.
         
-        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName)}
+        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName, companyName)}
         
         Current Status: ${expense.status}
         
@@ -61,7 +62,7 @@ export const notifyRequestorOnSubmission = (requestor: User, expense: Expense, c
     sendEmailNotification(requestor, subject, body);
 };
 
-export const notifyVerifiersOnSubmission = (verifiers: User[], expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string) => {
+export const notifyVerifiersOnSubmission = (verifiers: User[], expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string, companyName: string) => {
     const subject = `Action Required: New expense ${expense.referenceNumber} from ${expense.requestorName}`;
     const body = `
         Hello Team,
@@ -69,7 +70,7 @@ export const notifyVerifiersOnSubmission = (verifiers: User[], expense: Expense,
         A new expense request requires your verification.
         
         Requestor: ${expense.requestorName}
-        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName)}
+        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName, companyName)}
         
         Please log in to the portal to review and take action.
     `;
@@ -84,11 +85,12 @@ export const notifyOnStatusChange = (
     subcategoryName: string | undefined,
     projectName: string,
     siteName: string,
+    companyName: string,
     comment?: string
 ) => {
     let subject = '';
     let body = '';
-    const expenseDetails = getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName);
+    const expenseDetails = getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName, companyName);
 
     switch(expense.status) {
         case Status.PENDING_APPROVAL:
@@ -137,7 +139,7 @@ export const notifyOnStatusChange = (
 }
 
 
-export const notifyApproversOnVerification = (approvers: User[], expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string) => {
+export const notifyApproversOnVerification = (approvers: User[], expense: Expense, categoryName: string, subcategoryName: string | undefined, projectName: string, siteName: string, companyName: string) => {
     const subject = `Action Required: Verified expense ${expense.referenceNumber} needs approval`;
     const body = `
         Hello Team,
@@ -145,7 +147,7 @@ export const notifyApproversOnVerification = (approvers: User[], expense: Expens
         A verified expense request requires your final approval.
         
         Requestor: ${expense.requestorName}
-        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName)}
+        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName, companyName)}
         
         Please log in to the portal to review and take action.
     `;
@@ -160,6 +162,7 @@ export const notifyVerifierOnFinalAction = (
     subcategoryName: string | undefined,
     projectName: string,
     siteName: string,
+    companyName: string,
     comment?: string
 ) => {
     const statusText = expense.status === Status.APPROVED ? 'Approved' : 'Rejected';
@@ -169,7 +172,7 @@ export const notifyVerifierOnFinalAction = (
 
         The expense request from ${expense.requestorName} that you verified has now been ${statusText.toLowerCase()} by ${approver.name}.
 
-        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName)}
+        ${getExpenseDetailsForEmail(expense, categoryName, subcategoryName, projectName, siteName, companyName)}
 
         Final Status: ${expense.status}
         ${comment ? `Approver/Rejector Comment: "${comment}"\n` : ''}

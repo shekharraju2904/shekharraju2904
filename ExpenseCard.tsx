@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Expense, Status, Role } from '../types';
 import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, DocumentArrowDownIcon, PrinterIcon } from './Icons';
+// FIX: Import supabase client to generate public URLs for attachments.
+import { supabase } from '../supabaseClient';
 
 interface ExpenseCardProps {
   expense: Expense;
@@ -27,6 +29,24 @@ const formatDateTime = (isoString: string) => {
     const minutes = date.getMinutes().toString().padStart(2, '0');
     const seconds = date.getSeconds().toString().padStart(2, '0');
     return `${formatDate(isoString)} ${hours}:${minutes}:${seconds}`;
+};
+
+// FIX: Added helper function to get public URL for attachments from Supabase Storage.
+const getAttachmentUrl = (path: string | null): string | null => {
+    if (!path) return null;
+    const { data } = supabase.storage.from('attachments').getPublicUrl(path);
+    return data.publicUrl;
+};
+
+// FIX: Added helper function to extract a clean filename from the storage path.
+const cleanFileName = (path: string | null | undefined): string => {
+    if (!path) return 'attachment';
+    const parts = path.split('/');
+    const fullName = parts[parts.length - 1];
+    // Storage paths might have a timestamp prefix, so we split by the first underscore if it exists.
+    const underscoreIndex = fullName.indexOf('_');
+    if (underscoreIndex === -1) return fullName;
+    return fullName.substring(underscoreIndex + 1);
 };
 
 
@@ -58,7 +78,10 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categoryName, userRo
     const canTakeAction = (userRole === Role.VERIFIER && expense.status === Status.PENDING_VERIFICATION) ||
                           (userRole === Role.APPROVER && expense.status === Status.PENDING_APPROVAL);
 
-    const showAttachment = !!expense.attachment;
+    // FIX: Replaced direct `expense.attachment` access with a call to get a public URL from `expense.attachment_path`.
+    const attachmentUrl = getAttachmentUrl(expense.attachment_path);
+    const attachmentName = cleanFileName(expense.attachment_path);
+    const showAttachment = !!attachmentUrl;
 
     return (
         <div className="space-y-4">
@@ -80,15 +103,18 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, categoryName, userRo
                 <p className="mt-1 text-sm text-gray-600">{expense.description}</p>
             </div>
             
-            {showAttachment && expense.attachment && (
+            {/* FIX: Updated attachment section to use the public URL and cleaned filename. */}
+            {showAttachment && (
                 <div className="p-3 border rounded-md">
                      <a 
-                        href={`data:${expense.attachment.type};base64,${expense.attachment.data}`} 
-                        download={expense.attachment.name} 
+                        href={attachmentUrl!} 
+                        download={attachmentName}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm bg-primary hover:bg-primary-hover"
                     >
                         <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-                        Download ({expense.attachment.name})
+                        Download ({attachmentName})
                     </a>
                 </div>
             )}

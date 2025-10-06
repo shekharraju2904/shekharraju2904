@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Expense, Category, Role, Status, Project, Site } from '../types';
+import { User, Expense, Category, Role, Status, Project, Site, Company } from '../types';
 import ExpenseList from './ExpenseList';
 
 interface RequestorDashboardProps {
@@ -8,10 +8,11 @@ interface RequestorDashboardProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
   onViewExpense: (expense: Expense) => void;
 }
 
-const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, expenses, categories, projects, sites, onViewExpense }) => {
+const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, expenses, categories, projects, sites, companies, onViewExpense }) => {
   const [statusFilter, setStatusFilter] = useState<Status | 'All'>('All');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
@@ -86,6 +87,7 @@ const RequestorDashboard: React.FC<RequestorDashboardProps> = ({ currentUser, ex
         categories={categories}
         projects={projects}
         sites={sites}
+        companies={companies}
         title="My Expense History"
         emptyMessage="No expenses match the current filters."
         currentUser={currentUser}

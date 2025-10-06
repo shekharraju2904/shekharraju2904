@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Expense, Status, Role, User, Category, Project, Site } from '../types';
+import { Expense, Status, Role, User, Category, Project, Site, Company } from '../types';
 import { CheckCircleIcon, XCircleIcon, PaperClipIcon, ChevronDownIcon, PrinterIcon, StarIcon, TrashIcon, CreditCardIcon, UploadCloud, FileImage } from './Icons';
 import { supabase } from '../supabaseClient';
 import Avatar from './Avatar';
@@ -9,6 +9,7 @@ interface ExpenseCardProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
   userRole: Role;
   currentUser: User;
   onUpdateStatus?: (newStatus: Status, comment?: string) => void;
@@ -57,7 +58,7 @@ const cleanFileName = (path: string | null | undefined): string | undefined => {
 
 
 const ExpenseCard: React.FC<ExpenseCardProps> = ({ 
-    expense, categories, projects, sites, userRole, currentUser,
+    expense, categories, projects, sites, companies, userRole, currentUser,
     onUpdateStatus, onAddComment, onToggleExpensePriority, onSoftDeleteExpense, onMarkAsPaid, onClose 
 }) => {
     const [rejectionComment, setRejectionComment] = useState('');
@@ -107,6 +108,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
     const subcategory = category?.subcategories?.find(sc => sc.id === expense.subcategoryId);
     const projectName = projects.find(p => p.id === expense.projectId)?.name || 'N/A';
     const siteName = sites.find(s => s.id === expense.siteId)?.name || 'N/A';
+    const companyName = companies.find(c => c.id === expense.companyId)?.name || 'N/A';
     const categoryDisplayName = `${category?.name || 'Unknown'}${subcategory ? ` / ${subcategory.name}` : ''}`;
 
     const attachmentUrl = getAttachmentUrl(expense.attachment_path);
@@ -136,6 +138,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                <div><p className="font-medium text-neutral-400">Company</p><p className="text-neutral-100">{companyName}</p></div>
                 <div><p className="font-medium text-neutral-400">Project</p><p className="text-neutral-100">{projectName}</p></div>
                 <div><p className="font-medium text-neutral-400">Site/Place</p><p className="text-neutral-100">{siteName}</p></div>
                 <div className="col-span-full"><p className="font-medium text-neutral-400">Category</p><p className="text-neutral-100">{categoryDisplayName}</p></div>

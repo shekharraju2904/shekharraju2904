@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Expense, Category, Status, User, Project, Site, Role } from '../types';
+import { Expense, Category, Status, User, Project, Site, Role, Company } from '../types';
 import { EyeIcon, StarIcon, TrashIcon, CheckCircleIcon, XCircleIcon, Hourglass, CreditCardIcon } from './Icons';
 
 interface ExpenseListProps {
@@ -7,6 +7,7 @@ interface ExpenseListProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
   title: string;
   emptyMessage: string;
   currentUser: User;
@@ -30,7 +31,7 @@ const formatDate = (isoString: string) => {
 };
 
 const ExpenseList: React.FC<ExpenseListProps> = ({ 
-  expenses, categories, projects, sites, title, emptyMessage, currentUser, onViewExpense, onSoftDeleteExpense,
+  expenses, categories, projects, sites, companies, title, emptyMessage, currentUser, onViewExpense, onSoftDeleteExpense,
   isSelectionEnabled = false, selectedExpenseIds = [], onToggleSelection, onToggleSelectAll
 }) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -63,6 +64,10 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
   
   const getSiteName = (siteId: string): string => {
     return sites.find(s => s.id === siteId)?.name || 'Unknown Site';
+  };
+
+  const getCompanyName = (companyId: string): string => {
+    return companies.find(c => c.id === companyId)?.name || 'Unknown Company';
   };
 
   const StatusBadge = ({ status }: { status: Status }) => {
@@ -111,6 +116,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                     )}
                     <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-neutral-100 sm:pl-0">Reference</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-100 hidden lg:table-cell">Requestor</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-100 hidden md:table-cell">Company</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-100 hidden md:table-cell">Project</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-100">Amount</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-100 hidden sm:table-cell">Status</th>
@@ -138,6 +144,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                         <div className="mt-1 text-neutral-400 sm:hidden">{formatDate(expense.submittedAt)}</div>
                       </td>
                       <td className="hidden px-3 py-4 text-sm text-neutral-400 whitespace-nowrap lg:table-cell">{expense.requestorName}</td>
+                      <td className="hidden px-3 py-4 text-sm text-neutral-400 whitespace-nowrap md:table-cell">{getCompanyName(expense.companyId)}</td>
                       <td className="hidden px-3 py-4 text-sm text-neutral-400 whitespace-nowrap md:table-cell">{getProjectName(expense.projectId)}</td>
                       <td className="px-3 py-4 text-sm text-neutral-100 whitespace-nowrap font-semibold">₹{expense.amount.toLocaleString('en-IN')}</td>
                       <td className="hidden px-3 py-4 text-sm text-neutral-400 whitespace-nowrap sm:table-cell"><StatusBadge status={expense.status} /></td>

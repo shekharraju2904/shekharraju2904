@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense } from '../types';
+import { User, Category, Role, Subcategory, AuditLogItem, Project, Site, Expense, Company } from '../types';
 import { PencilIcon, TrashIcon, PlusIcon, KeyIcon, BanIcon, CheckCircleIcon, ArrowUturnLeftIcon } from './Icons';
 import Modal from './Modal';
 
@@ -8,6 +8,7 @@ interface AdminPanelProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
   expenses: Expense[];
   deletedExpenses: Expense[];
   auditLog: AuditLogItem[];
@@ -27,6 +28,9 @@ interface AdminPanelProps {
   onAddSite: (site: Omit<Site, 'id'>) => void;
   onUpdateSite: (site: Site) => void;
   onDeleteSite: (siteId: string) => void;
+  onAddCompany: (company: Omit<Company, 'id'>) => void;
+  onUpdateCompany: (company: Company) => void;
+  onDeleteCompany: (companyId: string) => void;
   activeAdminTab: string;
   setActiveAdminTab: (tabId: string) => void;
   onTriggerBackup: () => void;
@@ -35,12 +39,13 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({
-  users, categories, projects, sites, expenses, deletedExpenses, auditLog,
+  users, categories, projects, sites, companies, expenses, deletedExpenses, auditLog,
   onAddUser, onUpdateUser, onToggleUserStatus, onResetUserPassword,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddSubcategory, onUpdateSubcategory, onDeleteSubcategory,
   onAddProject, onUpdateProject, onDeleteProject,
   onAddSite, onUpdateSite, onDeleteSite,
+  onAddCompany, onUpdateCompany, onDeleteCompany,
   activeAdminTab, setActiveAdminTab, onTriggerBackup,
   onRestoreExpense, onPermanentlyDeleteExpense
 }) => {
@@ -49,12 +54,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isSubcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
   const [isProjectModalOpen, setProjectModalOpen] = useState(false);
   const [isSiteModalOpen, setSiteModalOpen] = useState(false);
+  const [isCompanyModalOpen, setCompanyModalOpen] = useState(false);
   
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingSubcategory, setEditingSubcategory] = useState<{ subcategory: Subcategory, categoryId: string } | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
 
   const handleOpenUserModal = (user: User | null = null) => {
     setEditingUser(user);
@@ -81,6 +88,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setSiteModalOpen(true);
   };
   
+  const handleOpenCompanyModal = (company: Company | null = null) => {
+    setEditingCompany(company);
+    setCompanyModalOpen(true);
+  };
+
   const handleUserFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -146,6 +158,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingSite(null);
   };
 
+  const handleCompanyFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const companyData = { name: formData.get('name') as string };
+    if (editingCompany) { onUpdateCompany({ ...editingCompany, ...companyData }); } 
+    else { onAddCompany(companyData); }
+    setCompanyModalOpen(false);
+    setEditingCompany(null);
+  };
+
   const handleDeleteCategory = (category: Category) => {
       if (expenses.some(e => e.categoryId === category.id)) {
           alert(`Cannot delete category "${category.name}". It is associated with existing expenses.`); return;
@@ -165,6 +187,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           alert(`Cannot delete site "${site.name}". It is associated with existing expenses.`); return;
       }
       if (window.confirm(`Delete site "${site.name}"? This cannot be undone.`)) { onDeleteSite(site.id); }
+  };
+
+  const handleDeleteCompany = (company: Company) => {
+      if (expenses.some(e => e.companyId === company.id)) {
+          alert(`Cannot delete company "${company.name}". It is associated with existing expenses.`); return;
+      }
+      if (window.confirm(`Delete company "${company.name}"? This cannot be undone.`)) { onDeleteCompany(company.id); }
   };
 
   const formatDateTime = (isoString: string) => {
@@ -421,6 +450,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
         )
+       case 'companies':
+         return (
+          <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+            <div className="sm:flex sm:items-center">
+              <div className="sm:flex-auto">
+                <h3 className="text-base font-semibold text-neutral-100">Companies</h3>
+                <p className="mt-1 text-sm text-neutral-400">Manage available companies for expense submission.</p>
+              </div>
+              <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                <button onClick={() => handleOpenCompanyModal()} type="button" className={modalButtonStyle}>
+                    <PlusIcon className="w-5 h-5 mr-2" /> Add Company
+                </button>
+              </div>
+            </div>
+             <div className="flow-root mt-6">
+              <div className={tableContainerClass}>
+                <div className={tableWrapperClass}>
+                  <table className={tableClass}>
+                    <thead className={tableHeadClass}>
+                      <tr>
+                        <th scope="col" className={tableThClass}>Company Name</th>
+                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0"><span className="sr-only">Edit</span></th>
+                      </tr>
+                    </thead>
+                    <tbody className={tableBodyClass}>
+                      {companies.map((company) => (
+                        <tr key={company.id} className={tableRowClass}>
+                          <td className="py-4 pl-4 pr-3 text-sm font-medium text-neutral-100 whitespace-nowrap sm:pl-0">{company.name}</td>
+                          <td className="relative flex justify-end items-center space-x-4 py-4 pl-3 pr-4 text-sm font-medium whitespace-nowrap sm:pr-0">
+                            <button onClick={() => handleOpenCompanyModal(company)} className="text-primary-light hover:text-primary-light/80"><PencilIcon className="w-5 h-5" /></button>
+                            <button onClick={() => handleDeleteCompany(company)} className="text-accent-danger hover:text-accent-danger/80"><TrashIcon className="w-5 h-5" /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
       case 'audit':
         return (
           <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
@@ -531,6 +601,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <TabButton tabId="subcategories" label="Subcategories" />
             <TabButton tabId="projects" label="Projects" />
             <TabButton tabId="sites" label="Sites" />
+            <TabButton tabId="companies" label="Companies" />
             <TabButton tabId="audit" label="Audit Log" />
             <TabButton tabId="system" label="System" />
             <TabButton tabId="recycle_bin" label="Recycle Bin" />
@@ -641,6 +712,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="pt-4 flex justify-end gap-3">
                   <button type="button" onClick={() => setSiteModalOpen(false)} className={modalCancelButtonStyle}>Cancel</button>
+                  <button type="submit" className={modalButtonStyle}>Save</button>
+              </div>
+          </form>
+      </Modal>
+
+      <Modal isOpen={isCompanyModalOpen} onClose={() => setCompanyModalOpen(false)} title={editingCompany ? 'Edit Company' : 'Add Company'}>
+          <form onSubmit={handleCompanyFormSubmit} className="space-y-4">
+              <div>
+                  <label htmlFor="company-name" className={formLabelStyle}>Company Name</label>
+                  <input type="text" name="name" id="company-name" defaultValue={editingCompany?.name || ''} required className={formInputStyle} />
+              </div>
+              <div className="pt-4 flex justify-end gap-3">
+                  <button type="button" onClick={() => setCompanyModalOpen(false)} className={modalCancelButtonStyle}>Cancel</button>
                   <button type="submit" className={modalButtonStyle}>Save</button>
               </div>
           </form>

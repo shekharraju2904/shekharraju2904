@@ -32,6 +32,11 @@ export interface Site {
   name: string;
 }
 
+export interface Company {
+  id: string;
+  name: string;
+}
+
 
 export interface Subcategory {
   id: string;
@@ -66,6 +71,7 @@ export interface Expense {
   description: string;
   projectId: string;
   siteId: string;
+  companyId: string;
   submittedAt: string; // ISO string
   status: Status;
   isHighPriority?: boolean;

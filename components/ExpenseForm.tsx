@@ -1,11 +1,12 @@
 import React, { useState, useRef, DragEvent } from 'react';
-import { Category, Expense, Project, Site } from '../types';
+import { Category, Expense, Project, Site, Company } from '../types';
 import { PaperClipIcon, XCircleIcon, UploadCloud, FileImage } from './Icons';
 
 interface ExpenseFormProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
   onSubmit: (expenseData: Omit<Expense, 'id' | 'status' | 'submittedAt' | 'history' | 'requestorId' | 'requestorName' | 'referenceNumber' | 'attachment_path' | 'subcategory_attachment_path' | 'payment_attachment_path'> & { attachment?: File, subcategoryAttachment?: File }) => void;
   onClose: () => void;
 }
@@ -111,13 +112,14 @@ const FileInput: React.FC<{
     );
 };
 
-const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, onSubmit, onClose }) => {
+const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, companies, onSubmit, onClose }) => {
   const [categoryId, setCategoryId] = useState<string>(categories[0]?.id || '');
   const [subcategoryId, setSubcategoryId] = useState<string>('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState<string>(projects[0]?.id || '');
   const [siteId, setSiteId] = useState<string>(sites[0]?.id || '');
+  const [companyId, setCompanyId] = useState<string>(companies[0]?.id || '');
   const [attachment, setAttachment] = useState<File | undefined>(undefined);
   const [subcategoryAttachment, setSubcategoryAttachment] = useState<File | undefined>(undefined);
   const [error, setError] = useState('');
@@ -148,7 +150,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
       return;
     }
     
-    if (!categoryId || !amount || !description || !projectId || !siteId) {
+    if (!categoryId || !amount || !description || !projectId || !siteId || !companyId) {
         setError("Please fill out all required fields.");
         return;
     }
@@ -160,6 +162,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
       description,
       projectId,
       siteId,
+      companyId,
       attachment,
       subcategoryAttachment,
     });
@@ -199,6 +202,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ categories, projects, sites, 
           <label htmlFor="siteId" className="block text-sm font-medium text-neutral-300">Site/Place</label>
           <select id="siteId" value={siteId} onChange={(e) => setSiteId(e.target.value)} required className={formInputStyle}>
             {sites.map(site => <option key={site.id} value={site.id}>{site.name}</option>)}
+          </select>
+        </div>
+        
+        <div className="sm:col-span-2">
+          <label htmlFor="companyId" className="block text-sm font-medium text-neutral-300">Company</label>
+          <select id="companyId" value={companyId} onChange={(e) => setCompanyId(e.target.value)} required className={formInputStyle}>
+            {companies.map(comp => <option key={comp.id} value={comp.id}>{comp.name}</option>)}
           </select>
         </div>
       </div>

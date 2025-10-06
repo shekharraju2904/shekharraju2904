@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Expense, Category, Status } from '../types';
 import { DocumentArrowDownIcon } from './Icons';
+// FIX: Import supabase client to generate public URLs for attachments.
+import { supabase } from '../supabaseClient';
 
 interface AttachmentsDashboardProps {
   expenses: Expense[];
@@ -17,6 +19,23 @@ const formatDate = (isoString: string) => {
     return `${day}-${month}-${year}`;
 };
 
+// FIX: Added helper function to get public URL for attachments from Supabase Storage.
+const getAttachmentUrl = (path: string | null): string | null => {
+    if (!path) return null;
+    const { data } = supabase.storage.from('attachments').getPublicUrl(path);
+    return data.publicUrl;
+};
+
+// FIX: Added helper function to extract a clean filename from the storage path.
+const cleanFileName = (path: string | null | undefined): string => {
+    if (!path) return 'attachment';
+    const parts = path.split('/');
+    const fullName = parts[parts.length - 1];
+    const underscoreIndex = fullName.indexOf('_');
+    if (underscoreIndex === -1) return fullName;
+    return fullName.substring(underscoreIndex + 1);
+};
+
 const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, categories }) => {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
@@ -27,7 +46,8 @@ const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, c
   const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || 'Unknown';
 
   const expensesWithAttachments = expenses.filter(expense => {
-    if (!expense.attachment) return false;
+    // FIX: Updated to check `attachment_path` instead of a non-existent `attachment` object.
+    if (!expense.attachment_path) return false;
     
     const submittedDateStr = new Date(expense.submittedAt).toISOString().split('T')[0];
     if (dateRange.from && submittedDateStr < dateRange.from) {
@@ -97,25 +117,36 @@ const AttachmentsDashboard: React.FC<AttachmentsDashboardProps> = ({ expenses, c
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {expensesWithAttachments.map((expense) => (
-                      <tr key={expense.id}>
-                        <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-0">{formatDate(expense.submittedAt)}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.requestorName}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getCategoryName(expense.categoryId)}</td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
-                        <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.attachment!.name}</td>
-                        <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
-                          <a 
-                            href={`data:${expense.attachment!.type};base64,${expense.attachment!.data}`} 
-                            download={expense.attachment!.name} 
-                            className="inline-flex items-center p-1 text-primary hover:text-primary-hover"
-                            aria-label={`Download ${expense.attachment!.name}`}
-                          >
-                            <DocumentArrowDownIcon className="w-5 h-5"/>
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
+                    {expensesWithAttachments.map((expense) => {
+                        // FIX: Get URL and name from `attachment_path` and handle null case.
+                        const attachmentUrl = getAttachmentUrl(expense.attachment_path);
+                        const attachmentName = cleanFileName(expense.attachment_path);
+                        if (!attachmentUrl) return null;
+
+                        return (
+                          <tr key={expense.id}>
+                            <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 whitespace-nowrap sm:pl-0">{formatDate(expense.submittedAt)}</td>
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.requestorName}</td>
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getCategoryName(expense.categoryId)}</td>
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
+                            {/* FIX: Use the cleaned filename for display. */}
+                            <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{attachmentName}</td>
+                            <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
+                              <a 
+                                // FIX: Use the generated URL for the download link instead of a data URI.
+                                href={attachmentUrl}
+                                download={attachmentName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center p-1 text-primary hover:text-primary-hover"
+                                aria-label={`Download ${attachmentName}`}
+                              >
+                                <DocumentArrowDownIcon className="w-5 h-5"/>
+                              </a>
+                            </td>
+                          </tr>
+                        );
+                    })}
                   </tbody>
                 </table>
               </div>

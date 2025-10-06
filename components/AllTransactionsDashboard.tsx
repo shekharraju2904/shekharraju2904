@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Expense, Category, Status, Project, Site, User } from '../types';
+import { Expense, Category, Status, Project, Site, User, Company } from '../types';
 import ExpenseList from './ExpenseList';
 import { Role } from '../types';
 
@@ -8,12 +8,13 @@ interface AllTransactionsDashboardProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
   currentUser: User;
   onViewExpense: (expense: Expense) => void;
   onSoftDeleteExpense?: (expenseId: string) => void;
 }
 
-const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ expenses, categories, projects, sites, currentUser, onViewExpense, onSoftDeleteExpense }) => {
+const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ expenses, categories, projects, sites, companies, currentUser, onViewExpense, onSoftDeleteExpense }) => {
   const [statusFilter, setStatusFilter] = useState<Status | 'All'>('All');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,6 +136,7 @@ const AllTransactionsDashboard: React.FC<AllTransactionsDashboardProps> = ({ exp
         categories={categories}
         projects={projects}
         sites={sites}
+        companies={companies}
         title="Transaction History"
         emptyMessage="No expenses match the current filters."
         currentUser={currentUser}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Expense, Category, Status, Project, Site } from '../types';
+import { Expense, Category, Status, Project, Site, Company } from '../types';
 
 declare const Chart: any;
 
@@ -8,11 +8,13 @@ interface ReportsDashboardProps {
   categories: Category[];
   projects: Project[];
   sites: Site[];
+  companies: Company[];
 }
 
-const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categories, projects, sites }) => {
+const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categories, projects, sites, companies }) => {
     const categoryChartRef = useRef<HTMLCanvasElement>(null);
     const projectChartRef = useRef<HTMLCanvasElement>(null);
+    const companyChartRef = useRef<HTMLCanvasElement>(null);
     const monthlyChartRef = useRef<HTMLCanvasElement>(null);
 
     const chartColors = ['#3B82F6', '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B', '#0D9488'];
@@ -20,6 +22,7 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
     useEffect(() => {
         let categoryChart: any;
         let projectChart: any;
+        let companyChart: any;
         let monthlyChart: any;
         Chart.defaults.color = '#94A3B8';
         Chart.defaults.font.family = 'Inter';
@@ -87,6 +90,37 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
             });
         }
         
+        if (companyChartRef.current) {
+            const ctx = companyChartRef.current.getContext('2d');
+            const expensesByCompany = companies.map(company => {
+                const total = expenses
+                    .filter(e => e.companyId === company.id && e.status === Status.APPROVED)
+                    .reduce((sum, e) => sum + e.amount, 0);
+                return { name: company.name, total };
+            }).filter(p => p.total > 0).sort((a,b) => b.total - a.total);
+
+            companyChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: expensesByCompany.map(p => p.name),
+                    datasets: [{
+                         data: expensesByCompany.map(p => p.total),
+                         backgroundColor: chartColors.slice(2).concat(chartColors.slice(0,2)),
+                         borderColor: '#0F172A',
+                         borderWidth: 4,
+                         hoverOffset: 8,
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    plugins: { 
+                        legend: { position: 'right', labels: { boxWidth: 12, padding: 15 } }, 
+                        title: { display: true, text: 'Approved Spending by Company', font: {size: 16}, color: '#F8FAFC', padding: { bottom: 20 } } 
+                    } 
+                }
+            });
+        }
+        
         if (monthlyChartRef.current) {
             const ctx = monthlyChartRef.current.getContext('2d');
             const monthlyData: { [key: string]: number } = {};
@@ -129,9 +163,10 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
         return () => {
             if (categoryChart) categoryChart.destroy();
             if (projectChart) projectChart.destroy();
+            if (companyChart) companyChart.destroy();
             if (monthlyChart) monthlyChart.destroy();
         };
-    }, [expenses, categories, projects]);
+    }, [expenses, categories, projects, companies]);
 
     return (
         <div className="space-y-8">
@@ -147,6 +182,9 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                 <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
                     <canvas ref={projectChartRef}></canvas>
                 </div>
+            </div>
+             <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+                 <canvas ref={companyChartRef}></canvas>
             </div>
             <div className="p-6 bg-neutral-900/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
                  <canvas ref={monthlyChartRef}></canvas>
