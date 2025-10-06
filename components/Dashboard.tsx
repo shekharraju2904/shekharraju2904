@@ -96,7 +96,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         return <AllTransactionsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} companies={companies} currentUser={currentUser} onViewExpense={setModalExpense} onSoftDeleteExpense={onSoftDeleteExpense} />;
 
       case 'reports':
-        return <ReportsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} companies={companies} />;
+        return <ReportsDashboard expenses={expenses} categories={categories} projects={projects} sites={sites} companies={companies} users={props.users} currentUser={currentUser} />;
 
       case 'profile':
         return <ProfilePage user={currentUser} onUpdateProfile={props.onUpdateProfile} onUpdatePassword={props.onUpdatePassword} />;

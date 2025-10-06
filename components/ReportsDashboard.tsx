@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Expense, Category, Status, Project, Site, Company } from '../types';
+import { Expense, Category, Status, Project, Site, Company, User, Role } from '../types';
+import { DocumentArrowDownIcon } from './Icons';
 
 declare const Chart: any;
 
@@ -9,9 +10,11 @@ interface ReportsDashboardProps {
   projects: Project[];
   sites: Site[];
   companies: Company[];
+  users: User[];
+  currentUser: User;
 }
 
-const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categories, projects, sites, companies }) => {
+const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categories, projects, sites, companies, users, currentUser }) => {
     const categoryChartRef = useRef<HTMLCanvasElement>(null);
     const projectChartRef = useRef<HTMLCanvasElement>(null);
     const companyChartRef = useRef<HTMLCanvasElement>(null);
@@ -168,11 +171,79 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
         };
     }, [expenses, categories, projects, companies]);
 
+    const handleDownloadTotalReport = () => {
+        const getLookupName = (items: {id: string, name: string}[], id: string | undefined) => items.find(i => i.id === id)?.name || '';
+        const getUser = (id: string | undefined) => users.find(u => u.id === id);
+
+        const header = [
+            "Reference Number", "Submission Date", "Requestor Name", "Requestor Email",
+            "Company", "Project", "Site/Place", "Category", "Subcategory",
+            "Amount (INR)", "Description", "Status", "High Priority",
+            "Paid Date", "Paid By", "Payment Reference", "Last Action By", "Last Action Timestamp"
+        ];
+
+        const rows = expenses.map(exp => {
+            const requestor = getUser(exp.requestorId);
+            const category = categories.find(c => c.id === exp.categoryId);
+            const subcategory = category?.subcategories?.find(sc => sc.id === exp.subcategoryId);
+            const paidBy = exp.paidBy ? getUser(exp.paidBy) : null;
+            const lastHistoryItem = exp.history[exp.history.length - 1];
+
+            const sanitizedDescription = `"${(exp.description || '').replace(/"/g, '""')}"`;
+
+            return [
+                exp.referenceNumber,
+                new Date(exp.submittedAt).toISOString(),
+                requestor?.name || '',
+                requestor?.email || '',
+                getLookupName(companies, exp.companyId),
+                getLookupName(projects, exp.projectId),
+                getLookupName(sites, exp.siteId),
+                category?.name || '',
+                subcategory?.name || '',
+                exp.amount,
+                sanitizedDescription,
+                exp.status,
+                exp.isHighPriority ? 'Yes' : 'No',
+                exp.paidAt ? new Date(exp.paidAt).toISOString() : '',
+                paidBy?.name || '',
+                exp.paymentReferenceNumber || '',
+                lastHistoryItem?.actorName || '',
+                lastHistoryItem ? new Date(lastHistoryItem.timestamp).toISOString() : ''
+            ].join(',');
+        });
+
+        const csvContent = [header.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `ExpenseFlow_Total_Report_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="space-y-8">
-            <div>
-                <h2 className="text-3xl font-bold text-neutral-50">Reports & Analytics</h2>
-                <p className="mt-1 text-neutral-400">Visualize spending patterns and gain insights into expense data.</p>
+            <div className="sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <h2 className="text-3xl font-bold text-neutral-50">Reports & Analytics</h2>
+                    <p className="mt-1 text-neutral-400">Visualize spending patterns and gain insights into expense data.</p>
+                </div>
+                 {currentUser.role === Role.ADMIN && (
+                    <div className="mt-4 sm:mt-0">
+                        <button
+                            type="button"
+                            onClick={handleDownloadTotalReport}
+                            className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-md hover:opacity-90 transition-opacity"
+                        >
+                            <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
+                            Download Total Report
+                        </button>
+                    </div>
+                )}
             </div>
             
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
