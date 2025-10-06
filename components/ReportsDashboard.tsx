@@ -1,8 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Expense, Category, Status, Project, Site, Company, User, Role } from '../types';
 import { DocumentArrowDownIcon } from './Icons';
+import { supabase } from '../supabaseClient';
 
 declare const Chart: any;
+declare const JSZip: any;
+declare const saveAs: any;
 
 interface ReportsDashboardProps {
   expenses: Expense[];
@@ -19,6 +22,7 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
     const projectChartRef = useRef<HTMLCanvasElement>(null);
     const companyChartRef = useRef<HTMLCanvasElement>(null);
     const monthlyChartRef = useRef<HTMLCanvasElement>(null);
+    const [isZipping, setIsZipping] = useState(false);
 
     const chartColors = ['#3B82F6', '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B', '#0D9488'];
 
@@ -225,6 +229,76 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
         URL.revokeObjectURL(url);
     };
 
+    const cleanFileName = (path: string | null | undefined): string => {
+        if (!path) return 'attachment';
+        const parts = path.split('/');
+        const fullName = parts[parts.length - 1];
+        const underscoreIndex = fullName.indexOf('_');
+        if (underscoreIndex === -1) return fullName;
+        return fullName.substring(underscoreIndex + 1);
+    };
+
+    const handleDownloadAllAttachments = async () => {
+        const expensesWithAttachments = expenses.filter(e => e.attachment_path || e.subcategory_attachment_path || e.payment_attachment_path);
+
+        if (expensesWithAttachments.length === 0) {
+            alert('No attachments found in the system.');
+            return;
+        }
+
+        if (!window.confirm(`You are about to download all attachments for ${expensesWithAttachments.length} expenses. This might take a long time and consume significant data. Are you sure you want to proceed?`)) {
+            return;
+        }
+
+        setIsZipping(true);
+        try {
+            const zip = new JSZip();
+            
+            for (const expense of expensesWithAttachments) {
+                const expenseFolder = zip.folder(expense.referenceNumber);
+                if (!expenseFolder) continue;
+
+                const attachmentsToProcess = [
+                    { path: expense.attachment_path, prefix: 'category' },
+                    { path: expense.subcategory_attachment_path, prefix: 'subcategory' },
+                    { path: expense.payment_attachment_path, prefix: 'payment' }
+                ];
+
+                for (const attachment of attachmentsToProcess) {
+                    if (attachment.path) {
+                        try {
+                            const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(attachment.path);
+                            if (!urlData || !urlData.publicUrl) {
+                                console.error(`Could not get public URL for path: ${attachment.path}`);
+                                continue;
+                            }
+                            const response = await fetch(urlData.publicUrl);
+                            if (response.ok) {
+                                const blob = await response.blob();
+                                const fileName = `${attachment.prefix}_${cleanFileName(attachment.path)}`;
+                                expenseFolder.file(fileName, blob);
+                            } else {
+                                console.error(`Failed to fetch attachment from ${urlData.publicUrl} for expense ${expense.referenceNumber}`);
+                            }
+                        } catch (error) {
+                            console.error(`Error processing attachment ${attachment.path} for expense ${expense.referenceNumber}:`, error);
+                        }
+                    }
+                }
+            }
+
+            const content = await zip.generateAsync({ type: 'blob' });
+            saveAs(content, `ExpenseFlow_All_Attachments_${new Date().toISOString().split('T')[0]}.zip`);
+            alert('Attachment ZIP file has been created and download has started.');
+
+        } catch (error) {
+            console.error('Failed to generate ZIP file:', error);
+            alert('An error occurred while creating the ZIP file. Please check the console for details.');
+        } finally {
+            setIsZipping(false);
+        }
+    };
+
     return (
         <div className="space-y-8">
             <div className="sm:flex sm:items-center sm:justify-between">
@@ -233,14 +307,23 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ expenses, categorie
                     <p className="mt-1 text-neutral-400">Visualize spending patterns and gain insights into expense data.</p>
                 </div>
                  {currentUser.role === Role.ADMIN && (
-                    <div className="mt-4 sm:mt-0">
+                    <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0">
                         <button
                             type="button"
                             onClick={handleDownloadTotalReport}
-                            className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-md hover:opacity-90 transition-opacity"
+                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-primary to-secondary rounded-md hover:opacity-90 transition-opacity"
                         >
                             <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
                             Download Total Report
+                        </button>
+                         <button
+                            type="button"
+                            onClick={handleDownloadAllAttachments}
+                            disabled={isZipping}
+                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-secondary to-accent rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait"
+                        >
+                            <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
+                            {isZipping ? 'Zipping Attachments...' : 'Download All Attachments'}
                         </button>
                     </div>
                 )}

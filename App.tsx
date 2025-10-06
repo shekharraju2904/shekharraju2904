@@ -1,3 +1,4 @@
+
 // FIX: Corrected the import statement for React and its hooks. The extraneous 'a,' was removed.
 import React, { useState, useEffect, useCallback } from 'react';
 import Login from './components/Login';
@@ -668,8 +669,8 @@ const App: React.FC = () => {
 
   const handleAddCategory = (d: Omit<Category, 'id'>) => onCrudOperation(supabase.from('categories').insert({name: d.name, attachment_required: d.attachmentRequired, auto_approve_amount: d.autoApproveAmount}), `Created category '${d.name}'.`, 'Failed to create category.');
   const handleUpdateCategory = (d: Category) => onCrudOperation(supabase.from('categories').update({name: d.name, attachment_required: d.attachmentRequired, auto_approve_amount: d.autoApproveAmount}).eq('id', d.id), `Updated category '${d.name}'.`, 'Failed to update category.');
-  // FIX: Renamed handler to avoid potential name collisions and align with coding patterns in the file.
-  const handleDeleteCategory = (id: string) => onCrudOperation(supabase.from('categories').delete().eq('id', id), `Deleted category.`, 'Failed to delete category.');
+  // FIX: Renamed handler to onDeleteCategory to align with other delete handlers.
+  const onDeleteCategory = (id: string) => onCrudOperation(supabase.from('categories').delete().eq('id', id), `Deleted category.`, 'Failed to delete category.');
   
   const handleAddSubcategory = (catId: string, d: Omit<Subcategory, 'id'>) => onCrudOperation(supabase.from('subcategories').insert({category_id: catId, name: d.name, attachment_required: d.attachmentRequired}), `Created subcategory '${d.name}'.`, 'Failed to create subcategory.');
   const handleUpdateSubcategory = (catId: string, d: Subcategory) => onCrudOperation(supabase.from('subcategories').update({name: d.name, attachment_required: d.attachmentRequired}).eq('id', d.id), `Updated subcategory '${d.name}'.`, 'Failed to update subcategory.');
@@ -984,7 +985,7 @@ const App: React.FC = () => {
       onResetUserPassword={handleResetUserPassword}
       onAddCategory={handleAddCategory}
       onUpdateCategory={handleUpdateCategory}
-      onDeleteCategory={handleDeleteCategory}
+      onDeleteCategory={onDeleteCategory}
       onAddSubcategory={handleAddSubcategory}
       // FIX: Corrected a typo in the prop name. It should be `handleUpdateSubcategory`.
       onUpdateSubcategory={handleUpdateSubcategory}
