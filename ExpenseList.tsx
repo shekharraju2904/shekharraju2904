@@ -65,7 +65,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, categories, title, 
                       <td className="px-3 py-4 text-sm font-mono text-gray-500 whitespace-nowrap">{expense.referenceNumber}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.requestorName}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{getCategoryName(expense.categoryId)}</td>
-                      <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">{expense.amount.toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap">₹{expense.amount.toLocaleString('en-IN')}</td>
                       <td className="px-3 py-4 text-sm text-gray-500 whitespace-nowrap"><StatusBadge status={expense.status} /></td>
                       <td className="relative py-4 pl-3 pr-4 text-sm font-medium text-right whitespace-nowrap sm:pr-0">
                         <button onClick={() => setSelectedExpense(expense)} className="text-primary hover:text-primary-hover"><EyeIcon className="w-5 h-5"/></button>
