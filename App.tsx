@@ -47,6 +47,7 @@ const mapDbExpenseToAppExpense = (e: any, userMap: Map<string, string>): Expense
     payment_attachment_path: e.payment_attachment_path,
     paidAt: e.paid_at,
     paidBy: e.paid_by,
+    paymentReferenceNumber: e.payment_reference_number,
     history: e.history,
     deletedAt: e.deleted_at,
     deletedBy: e.deleted_by,
@@ -866,7 +867,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleMarkAsPaid = async (expenseId: string, paymentAttachment: File) => {
+  const handleMarkAsPaid = async (expenseId: string, paymentAttachment: File, paymentReferenceNumber: string) => {
     if (!currentUser) return;
     const expenseToUpdate = expenses.find(e => e.id === expenseId);
     if (!expenseToUpdate) {
@@ -897,6 +898,7 @@ const App: React.FC = () => {
                 paid_at: new Date().toISOString(),
                 paid_by: currentUser.id,
                 payment_attachment_path,
+                payment_reference_number: paymentReferenceNumber,
                 history: updatedHistory,
             })
             .eq('id', expenseId);
@@ -909,7 +911,12 @@ const App: React.FC = () => {
 
         const requestor = users.find(u => u.id === expenseToUpdate.requestorId);
         if (requestor) {
-            Notifications.notifyRequestorOnPayment(requestor, { ...expenseToUpdate, status: Status.PAID });
+            const newlyPaidExpense = { 
+                ...expenseToUpdate, 
+                status: Status.PAID, 
+                paymentReferenceNumber 
+            };
+            Notifications.notifyRequestorOnPayment(requestor, newlyPaidExpense);
         }
 
     } catch (error) {

@@ -52,7 +52,7 @@ interface DashboardProps {
   onSoftDeleteExpense: (expenseId: string) => void;
   onRestoreExpense: (expenseId: string) => void;
   onPermanentlyDeleteExpense: (expenseId: string) => void;
-  onMarkAsPaid: (expenseId: string, attachment: File) => void;
+  onMarkAsPaid: (expenseId: string, attachment: File, paymentReferenceNumber: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = (props) => {
@@ -160,8 +160,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                   onSoftDeleteExpense(modalExpense.id);
                   setModalExpense(null);
                 } : undefined}
-                onMarkAsPaid={onMarkAsPaid ? (expenseId, attachment) => {
-                    onMarkAsPaid(expenseId, attachment);
+                onMarkAsPaid={onMarkAsPaid ? (expenseId, attachment, paymentRef) => {
+                    onMarkAsPaid(expenseId, attachment, paymentRef);
                     setModalExpense(null);
                 } : undefined}
                 onClose={() => setModalExpense(null)}

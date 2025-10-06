@@ -74,6 +74,7 @@ export interface Expense {
   payment_attachment_path: string | null;
   paidAt?: string; // ISO string
   paidBy?: string; // user id
+  paymentReferenceNumber?: string;
   history: HistoryItem[];
   deletedAt?: string; // ISO string
   deletedBy?: string; // user id

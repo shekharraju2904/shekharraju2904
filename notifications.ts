@@ -225,6 +225,7 @@ export const notifyRequestorOnPayment = (requestor: User, expense: Expense) => {
         
         Reference: ${expense.referenceNumber}
         Amount: ₹${expense.amount.toLocaleString('en-IN')}
+        Payment Reference: ${expense.paymentReferenceNumber || 'N/A'}
         
         The amount has been reimbursed. You can view payment details in the portal.
     `;

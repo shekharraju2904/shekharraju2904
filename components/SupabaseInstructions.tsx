@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     status_before_delete text,
     paid_at timestamp with time zone,
     paid_by uuid REFERENCES public.profiles(id),
-    payment_attachment_path text
+    payment_attachment_path text,
+    payment_reference_number text
 );
 CREATE TABLE IF NOT EXISTS public.audit_log (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -87,6 +88,9 @@ BEGIN
   END IF;
   IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'payment_attachment_path') THEN
     ALTER TABLE public.expenses ADD COLUMN payment_attachment_path text;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'expenses' AND column_name = 'payment_reference_number') THEN
+    ALTER TABLE public.expenses ADD COLUMN payment_reference_number text;
   END IF;
 END $$;
 
